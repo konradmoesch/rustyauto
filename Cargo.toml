@@ -1,0 +1,19 @@
+[package]
+name = "rustyauto"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+members = [
+    "aoap_rs",
+    "aasdk_rs",
+]
+
+[dependencies]
+aoap_rs = { path = "aoap_rs" }
+aasdk_rs = { path = "aasdk_rs" }
+env_logger = "0.9"
+fern = { version = "0.6.0", features = ["colored"] }
+chrono = "0.4.19"
+log = "0.4"
+rusb = "0.9"

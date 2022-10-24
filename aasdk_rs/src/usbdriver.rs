@@ -1,7 +1,6 @@
-use std::alloc::handle_alloc_error;
 use std::time::Duration;
 
-use rusb::{Device, GlobalContext};
+use rusb::GlobalContext;
 
 pub struct UsbDriver {
     device: rusb::Device<GlobalContext>,
@@ -29,7 +28,7 @@ impl UsbDriver {
             handle.claim_interface(0).unwrap();
         }
         let aoa_interface = interfaces.nth(0).unwrap();
-        let mut interface_desc = aoa_interface.descriptors().nth(0).unwrap();
+        let interface_desc = aoa_interface.descriptors().nth(0).unwrap();
         if interface_desc.num_endpoints() != 2 { log::error!("incorrect number of endpoints on aoa interface") }
         let endpoint_desc_in = interface_desc.endpoint_descriptors().nth(0).unwrap();
         let endpoint_desc_out = interface_desc.endpoint_descriptors().nth(1).unwrap();
@@ -51,7 +50,11 @@ impl UsbDriver {
 
     pub fn read_buffer(&self, buf: &mut [u8]) {
         match self.handle.read_bulk(self.in_endpoint_addr, buf, self.timeout) {
-            Ok(size) => { log::info!("Successfully read {size} bits from USB device")}
+            Ok(size) => {
+                log::info!("Successfully read {size} bits from USB device");
+                //buf.to_vec().resize(size, 0);
+                buf.to_vec().truncate(size);
+            }
             Err(e) => { log::error!("Error reading from USB device: {e}") }
         };
     }

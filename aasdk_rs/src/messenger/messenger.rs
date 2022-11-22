@@ -25,6 +25,13 @@ impl LegacyMessenger {
         let received_message = Message::from_data_frame(in_buffer.as_slice());
         received_message
     }
+    pub fn receive_message_without_size(&self) -> Message {
+        let mut in_buffer = vec![0u8; 9999];
+        let size = self.usb_driver.read_buffer(in_buffer.as_mut_slice());
+        in_buffer.truncate(size);
+        let received_message = Message::from_data_frame(in_buffer.as_slice());
+        received_message
+    }
     pub fn send_message(&mut self, message_to_send: Message) {
         self.usb_driver.send_buffer(message_to_send.to_byte_vector().as_slice());
     }

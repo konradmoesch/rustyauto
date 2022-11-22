@@ -29,8 +29,13 @@ pub fn handle_message(message: &Message) {
                     log::info!("Received AV Media Indication");
                     log::debug!("Indication content: {:?}", payload.as_slice());
                 }
+                Ok(AVMessageID::AvMediaWithTimestampIndication) => {
+                    log::info!("Received AV Media Indication with timestamp");
+                    messenger::timestamp::get_timestamp_from_bytes(&payload.as_slice()[2..]);
+                    log::debug!("Indication content: {:?}", payload.as_slice());
+                },
                 _ => {
-                    log::error!("Error: UnknownMessageID: {:?}", message_id);
+                    log::error!("Error: UnknownMessageID: {:?} ({:?})", message_id, message_id_word);
                     unimplemented!()
                 }
             }
@@ -106,4 +111,24 @@ pub fn create_video_focus_indication() -> Message {
     //println!("{:x?}", payload);
     let message = messenger::message::Message { frame_header, channel_id: ChannelID::Video, payload };
     message
+}
+
+pub fn create_av_media_ack_indication() -> Message {
+    log::info!("Creating av media ack indication");
+    let frame_header = FrameHeader {
+        encryption_type: EncryptionType::Encrypted,
+        message_type: MessageType::Specific,
+        frame_type: FrameType::Bulk,
+    };
+    let mut indication = crate::protos::AVMediaAckIndicationMessage::AVMediaAckIndication::new();
+    indication.set_session(0);
+    indication.set_value(1);
+    let mut payload = (AVMessageID::AvMediaAckIndication as u16).to_be_bytes().to_vec();
+    let mut bytes = indication.write_to_bytes().unwrap();
+    //println!("{:x?}", bytes);
+    payload.extend(bytes);
+    //println!("{:x?}", payload);
+    let message = messenger::message::Message { frame_header, channel_id: ChannelID::Video, payload};
+    message
+
 }

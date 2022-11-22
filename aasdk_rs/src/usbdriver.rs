@@ -48,14 +48,18 @@ impl UsbDriver {
         self.handle.write_bulk(self.out_endpoint_addr, buffer, self.timeout).unwrap());
     }
 
-    pub fn read_buffer(&self, buf: &mut [u8]) {
+    pub fn read_buffer(&self, buf: &mut [u8]) -> usize {
         match self.handle.read_bulk(self.in_endpoint_addr, buf, self.timeout) {
             Ok(size) => {
                 log::info!("Successfully read {size} bits from USB device");
                 //buf.to_vec().resize(size, 0);
                 buf.to_vec().truncate(size);
+                size
             }
-            Err(e) => { log::error!("Error reading from USB device: {e}") }
-        };
+            Err(e) => {
+                log::error!("Error reading from USB device: {e}");
+                0
+            }
+        }
     }
 }

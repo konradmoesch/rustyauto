@@ -4,11 +4,11 @@ use crate::protos::ServiceDiscoveryResponseMessage::ServiceDiscoveryResponse;
 pub struct SystemAudioService {}
 
 impl Service for SystemAudioService {
-    fn start(&self) {
+    fn start(&mut self) {
         log::info!("Start");
     }
 
-    fn stop(&self) {
+    fn stop(&mut self) {
         log::info!("Stop");
     }
 

@@ -8,8 +8,8 @@ use crate::services::audio_input_service::AudioInputService;
 use crate::services::bluetooth_service::BluetoothService;
 use crate::services::input_service::InputService;
 use crate::services::media_audio_service::MediaAudioService;
-use crate::services::sensor_service::SensorService;
-use crate::services::service::ServiceList;
+use crate::services::sensor_service::{SensorService, SensorServiceConfig};
+use crate::services::service::{ServiceList, ServiceStatus};
 use crate::services::speech_audio_service::SpeechAudioService;
 use crate::services::system_audio_service::SystemAudioService;
 use crate::services::video_service::VideoService;
@@ -20,7 +20,10 @@ pub struct AndroidAutoEntity {
     cryptor: Cryptor,
     messenger: LegacyMessenger,
     service_list: ServiceList,
+    config: AndroidAutoConfig,
 }
+
+pub struct AndroidAutoConfig {}
 
 impl AndroidAutoEntity {
     pub fn new(usb_driver: UsbDriver) -> Self {
@@ -28,6 +31,7 @@ impl AndroidAutoEntity {
             cryptor: Cryptor::init(),
             messenger: LegacyMessenger::init(usb_driver),//, &cryptor),
             service_list: ServiceList::new(),
+            config: AndroidAutoConfig {},
         }
     }
 
@@ -124,7 +128,11 @@ impl AndroidAutoEntity {
         let media_audio_service = MediaAudioService {};
         let speech_audio_service = SpeechAudioService {};
         let system_audio_service = SystemAudioService {};
-        let sensor_service = SensorService {};
+        let sensor_service = SensorService {
+            service_status: ServiceStatus::Uninitialized,
+            config: SensorServiceConfig { location_sensor_present: false },
+            night_sensor_value: crate::services::sensor_service::NightStatus::Night
+        };
         let video_service = VideoService {};
         let bluetooth_service = BluetoothService {};
         let input_service = InputService {};
@@ -139,7 +147,7 @@ impl AndroidAutoEntity {
         service_list.push(Box::new(input_service));
         service_list.push(Box::new(wifi_service));
 
-        for service in service_list {
+        for mut service in service_list {
             service.start();
             service.fill_features(&mut service_disc_res);
             //dbg!(service_disc_res.clone().channels);
@@ -157,7 +165,7 @@ impl AndroidAutoEntity {
         self.cryptor.encrypt_message(&mut service_discovery_response_message);
         self.messenger.send_message(service_discovery_response_message);
 
-        let mut received_message = self.messenger.receive_message(37);
+        let mut received_message = self.messenger.receive_message_without_size();
         self.cryptor.decrypt_message(&mut received_message);
         received_message.handle();
 
@@ -167,7 +175,7 @@ impl AndroidAutoEntity {
 
         log::warn!("Opening channels now");
         //ChannelOpenRequest for AudioInputChannel
-        let mut received_message = self.messenger.receive_message(39);
+        let mut received_message = self.messenger.receive_message_without_size();
         self.cryptor.decrypt_message(&mut received_message);
         received_message.handle();
 
@@ -176,7 +184,7 @@ impl AndroidAutoEntity {
         self.messenger.send_message(channel_open_response_message);
 
         //Media Audio Channel Open Request
-        let mut received_message = self.messenger.receive_message(39);
+        let mut received_message = self.messenger.receive_message_without_size();
         self.cryptor.decrypt_message(&mut received_message);
         received_message.handle();
 
@@ -185,7 +193,7 @@ impl AndroidAutoEntity {
         self.messenger.send_message(channel_open_response_message);
 
         //Speech audio open request
-        let mut received_message = self.messenger.receive_message(39);
+        let mut received_message = self.messenger.receive_message_without_size();
         self.cryptor.decrypt_message(&mut received_message);
         received_message.handle();
 
@@ -194,7 +202,7 @@ impl AndroidAutoEntity {
         self.messenger.send_message(channel_open_response_message);
 
         //System audio open request
-        let mut received_message = self.messenger.receive_message(39);
+        let mut received_message = self.messenger.receive_message_without_size();
         self.cryptor.decrypt_message(&mut received_message);
         received_message.handle();
 
@@ -203,7 +211,7 @@ impl AndroidAutoEntity {
         self.messenger.send_message(channel_open_response_message);
 
         //sensor channel open request
-        let mut received_message = self.messenger.receive_message(39);
+        let mut received_message = self.messenger.receive_message_without_size();
         self.cryptor.decrypt_message(&mut received_message);
         received_message.handle();
 
@@ -650,6 +658,22 @@ impl AndroidAutoEntity {
         self.cryptor.decrypt_message(&mut received_message);
         log::error!("Received blub: {:?}", received_message);
         received_message.handle();
+
+        let mut av_ack_message = channels::video_service_channel::create_av_media_ack_indication();
+        self.cryptor.encrypt_message(&mut av_ack_message);
+        self.messenger.send_message(av_ack_message);
+
+        //video av media indication
+        loop {
+            let mut received_message = self.messenger.receive_message(1561);
+            self.cryptor.decrypt_message(&mut received_message);
+            log::error!("Received blub: {:?}", received_message);
+            received_message.handle();
+
+            let mut av_ack_message = channels::video_service_channel::create_av_media_ack_indication();
+            self.cryptor.encrypt_message(&mut av_ack_message);
+            self.messenger.send_message(av_ack_message);
+        }
     }
 }
 

@@ -1,9 +1,11 @@
+use std::time::Duration;
 use openssl_sys::uselocale;
 use crate::channels;
 use crate::cryptor;
 use crate::cryptor::Cryptor;
+use crate::data::android_auto_entity::Version;
 use crate::messenger::message::{ChannelID, EncryptionType, Message};
-use crate::messenger::messenger::LegacyMessenger;
+use crate::messenger::legacy_messenger::LegacyMessenger;
 use crate::services::audio_input_service::AudioInputService;
 use crate::services::bluetooth_service::BluetoothService;
 use crate::services::input_service::InputService;
@@ -11,27 +13,25 @@ use crate::services::media_audio_service::MediaAudioService;
 use crate::services::sensor_service::{SensorService, SensorServiceConfig};
 use crate::services::service::{ServiceList, ServiceStatus};
 use crate::services::speech_audio_service::SpeechAudioService;
-use crate::services::system_audio_service::SystemAudioService;
+use crate::services::system_audio_service::SystemAudioServiceData;
 use crate::services::video_service::VideoService;
 use crate::services::wifi_service::WifiService;
 use crate::usbdriver::UsbDriver;
 
-pub struct AndroidAutoEntity {
+pub struct LegacyAndroidAutoEntity {
     cryptor: Cryptor,
     messenger: LegacyMessenger,
     service_list: ServiceList,
-    config: AndroidAutoConfig,
+    //config: AndroidAutoConfig,
 }
 
-pub struct AndroidAutoConfig {}
-
-impl AndroidAutoEntity {
+impl LegacyAndroidAutoEntity {
     pub fn new(usb_driver: UsbDriver) -> Self {
         Self {
             cryptor: Cryptor::init(),
             messenger: LegacyMessenger::init(usb_driver),//, &cryptor),
             service_list: ServiceList::new(),
-            config: AndroidAutoConfig {},
+            //config: AndroidAutoConfig {},
         }
     }
 
@@ -62,11 +62,12 @@ impl AndroidAutoEntity {
         out_queue_tx.send(version_request_message.clone()).unwrap();
         in_queue_tx.send((1)).unwrap();
         loop {}*/
-        let version_request_message = channels::control_service_channel::create_version_request_message();
+        let own_version = Version { major: 1, minor: 0 };
+        let version_request_message = channels::control_service_channel::create_version_request_message(&own_version);
         self.messenger.send_message(version_request_message);
 
         let received_message = self.messenger.receive_message(12);
-        received_message.handle();
+        ////received_message.handle();
         log::info!("Doing handshake now");
         self.cryptor.do_handshake();
 
@@ -76,7 +77,7 @@ impl AndroidAutoEntity {
         self.messenger.send_message(handshake_message);
 
         let received_message = self.messenger.receive_message(2288);
-        received_message.handle();
+        //received_message.handle();
         let bla = received_message.payload[2..].to_vec();
         log::info!("{:?}", bla);
         self.cryptor.write_handshake_buffer(bla.as_slice());
@@ -88,7 +89,7 @@ impl AndroidAutoEntity {
         self.messenger.send_message(handshake_message);
 
         let received_message = self.messenger.receive_message(57);
-        received_message.handle();
+        //received_message.handle();
         let bla = received_message.payload[2..].to_vec();
         log::info!("{:?}", bla);
         self.cryptor.write_handshake_buffer(bla.as_slice());
@@ -101,7 +102,7 @@ impl AndroidAutoEntity {
 
         let mut received_message = self.messenger.receive_message(870);
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         let mut service_disc_res = crate::protos::ServiceDiscoveryResponseMessage::ServiceDiscoveryResponse::new();
         //service_disc_res.mutable_channels()->Reserve(256);
@@ -127,7 +128,7 @@ impl AndroidAutoEntity {
         let audio_input_service = AudioInputService {};
         let media_audio_service = MediaAudioService {};
         let speech_audio_service = SpeechAudioService {};
-        let system_audio_service = SystemAudioService {};
+        let system_audio_service = SystemAudioServiceData {};
         let sensor_service = SensorService {
             service_status: ServiceStatus::Uninitialized,
             config: SensorServiceConfig { location_sensor_present: false },
@@ -167,7 +168,7 @@ impl AndroidAutoEntity {
 
         let mut received_message = self.messenger.receive_message_without_size();
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         let mut audio_focus_response_message = channels::control_service_channel::create_audio_focus_response_message();
         self.cryptor.encrypt_message(&mut audio_focus_response_message);
@@ -177,7 +178,7 @@ impl AndroidAutoEntity {
         //ChannelOpenRequest for AudioInputChannel
         let mut received_message = self.messenger.receive_message_without_size();
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         let mut channel_open_response_message = channels::av_input_service_channel::create_channel_open_response_message();
         self.cryptor.encrypt_message(&mut channel_open_response_message);
@@ -186,7 +187,7 @@ impl AndroidAutoEntity {
         //Media Audio Channel Open Request
         let mut received_message = self.messenger.receive_message_without_size();
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         let mut channel_open_response_message = channels::media_audio_service_channel::create_channel_open_response_message();
         self.cryptor.encrypt_message(&mut channel_open_response_message);
@@ -195,7 +196,7 @@ impl AndroidAutoEntity {
         //Speech audio open request
         let mut received_message = self.messenger.receive_message_without_size();
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         let mut channel_open_response_message = channels::speech_audio_service_channel::create_channel_open_response_message();
         self.cryptor.encrypt_message(&mut channel_open_response_message);
@@ -204,7 +205,7 @@ impl AndroidAutoEntity {
         //System audio open request
         let mut received_message = self.messenger.receive_message_without_size();
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         let mut channel_open_response_message = channels::system_audio_service_channel::create_channel_open_response_message();
         self.cryptor.encrypt_message(&mut channel_open_response_message);
@@ -213,7 +214,7 @@ impl AndroidAutoEntity {
         //sensor channel open request
         let mut received_message = self.messenger.receive_message_without_size();
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         let mut channel_open_response_message = channels::sensor_service_channel::create_channel_open_response_message();
         self.cryptor.encrypt_message(&mut channel_open_response_message);
@@ -222,7 +223,7 @@ impl AndroidAutoEntity {
         //Input channel open request
         let mut received_message = self.messenger.receive_message(39);
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         let mut channel_open_response_message = channels::input_service_channel::create_channel_open_response_message();
         self.cryptor.encrypt_message(&mut channel_open_response_message);
@@ -231,7 +232,7 @@ impl AndroidAutoEntity {
         //Video channel open request
         let mut received_message = self.messenger.receive_message(39);
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         let mut channel_open_response_message = channels::video_service_channel::create_channel_open_response_message();
         self.cryptor.encrypt_message(&mut channel_open_response_message);
@@ -242,7 +243,7 @@ impl AndroidAutoEntity {
         //Media audio setup request
         let mut received_message = self.messenger.receive_message(39);
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         match received_message.channel_id {
             ChannelID::Video => {
@@ -262,7 +263,7 @@ impl AndroidAutoEntity {
                     log::info!("Would receive more");
                     /*let mut received_message = self.messenger.receive_message(39);
                     self.cryptor.decrypt_message(&mut received_message);
-                    received_message.handle();*/
+                    //received_message.handle();*/
                 }
             },
             ChannelID::Sensor => {
@@ -288,7 +289,7 @@ impl AndroidAutoEntity {
         //Speech audio setup request
         let mut received_message = self.messenger.receive_message(39);
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         match received_message.channel_id {
             ChannelID::Video => {
@@ -308,7 +309,7 @@ impl AndroidAutoEntity {
                     log::info!("Would receive more");
                     /*let mut received_message = self.messenger.receive_message(39);
                     self.cryptor.decrypt_message(&mut received_message);
-                    received_message.handle();*/
+                    //received_message.handle();*/
                 }
             },
             ChannelID::Sensor => {
@@ -334,7 +335,7 @@ impl AndroidAutoEntity {
         //System audio setup request
         let mut received_message = self.messenger.receive_message(39);
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         match received_message.channel_id {
             ChannelID::Video => {
@@ -354,7 +355,7 @@ impl AndroidAutoEntity {
                     log::info!("Would receive more");
                     /*let mut received_message = self.messenger.receive_message(39);
                     self.cryptor.decrypt_message(&mut received_message);
-                    received_message.handle();*/
+                    //received_message.handle();*/
                 }
             },
             ChannelID::Sensor => {
@@ -380,7 +381,7 @@ impl AndroidAutoEntity {
         //input setup request
         let mut received_message = self.messenger.receive_message(39);
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         match received_message.channel_id {
             ChannelID::Video => {
@@ -400,7 +401,7 @@ impl AndroidAutoEntity {
                     log::info!("Would receive more");
                     /*let mut received_message = self.messenger.receive_message(39);
                     self.cryptor.decrypt_message(&mut received_message);
-                    received_message.handle();*/
+                    //received_message.handle();*/
                 }
             },
             ChannelID::Sensor => {
@@ -426,7 +427,7 @@ impl AndroidAutoEntity {
         //video setup request
         let mut received_message = self.messenger.receive_message(39);
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         match received_message.channel_id {
             ChannelID::Video => {
@@ -446,7 +447,7 @@ impl AndroidAutoEntity {
                     log::info!("Would receive more");
                     /*let mut received_message = self.messenger.receive_message(39);
                     self.cryptor.decrypt_message(&mut received_message);
-                    received_message.handle();*/
+                    //received_message.handle();*/
                 }
             },
             ChannelID::Sensor => {
@@ -472,7 +473,7 @@ impl AndroidAutoEntity {
         //sensor setup request: location
         let mut received_message = self.messenger.receive_message(39);
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         match received_message.channel_id {
             ChannelID::Video => {
@@ -492,7 +493,7 @@ impl AndroidAutoEntity {
                     log::info!("Would receive more");
                     /*let mut received_message = self.messenger.receive_message(39);
                     self.cryptor.decrypt_message(&mut received_message);
-                    received_message.handle();*/
+                    //received_message.handle();*/
                 }
             },
             ChannelID::Sensor => {
@@ -518,7 +519,7 @@ impl AndroidAutoEntity {
         //video start indication
         let mut received_message = self.messenger.receive_message(39);
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         match received_message.channel_id {
             ChannelID::Video => {
@@ -538,7 +539,7 @@ impl AndroidAutoEntity {
                     log::info!("Would receive more");
                     /*let mut received_message = self.messenger.receive_message(39);
                     self.cryptor.decrypt_message(&mut received_message);
-                    received_message.handle();*/
+                    //received_message.handle();*/
                 }
             },
             ChannelID::Sensor => {
@@ -564,7 +565,7 @@ impl AndroidAutoEntity {
         //sensor setup request: driving status
         let mut received_message = self.messenger.receive_message(39);
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         match received_message.channel_id {
             ChannelID::Video => {
@@ -584,7 +585,7 @@ impl AndroidAutoEntity {
                     log::info!("Would receive more");
                     /*let mut received_message = self.messenger.receive_message(39);
                     self.cryptor.decrypt_message(&mut received_message);
-                    received_message.handle();*/
+                    //received_message.handle();*/
                 }
             },
             ChannelID::Sensor => {
@@ -610,7 +611,7 @@ impl AndroidAutoEntity {
         //sensor setup request: night data
         let mut received_message = self.messenger.receive_message(39);
         self.cryptor.decrypt_message(&mut received_message);
-        received_message.handle();
+        //received_message.handle();
 
         match received_message.channel_id {
             ChannelID::Video => {
@@ -630,7 +631,7 @@ impl AndroidAutoEntity {
                     log::info!("Would receive more");
                     /*let mut received_message = self.messenger.receive_message(39);
                     self.cryptor.decrypt_message(&mut received_message);
-                    received_message.handle();*/
+                    //received_message.handle();*/
                 }
             },
             ChannelID::Sensor => {
@@ -657,7 +658,7 @@ impl AndroidAutoEntity {
         let mut received_message = self.messenger.receive_message(64);
         self.cryptor.decrypt_message(&mut received_message);
         log::error!("Received blub: {:?}", received_message);
-        received_message.handle();
+        //received_message.handle();
 
         let mut av_ack_message = channels::video_service_channel::create_av_media_ack_indication();
         self.cryptor.encrypt_message(&mut av_ack_message);
@@ -665,10 +666,11 @@ impl AndroidAutoEntity {
 
         //video av media indication
         loop {
+            std::thread::sleep(Duration::from_secs(1));
             let mut received_message = self.messenger.receive_message(1561);
             self.cryptor.decrypt_message(&mut received_message);
             log::error!("Received blub: {:?}", received_message);
-            received_message.handle();
+            //received_message.handle();
 
             let mut av_ack_message = channels::video_service_channel::create_av_media_ack_indication();
             self.cryptor.encrypt_message(&mut av_ack_message);

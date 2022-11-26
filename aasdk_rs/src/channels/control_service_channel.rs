@@ -7,15 +7,19 @@ use rusb::Version;
 
 use crate::{channels, messenger, protos};
 use crate::channels::control_service_channel::VersionResponseStatus::{Match, Mismatch};
+use crate::data::android_auto_entity::AndroidAutoEntityData;
+use crate::data::messenger::MessengerStatus;
 use crate::messenger::message::{ChannelID, EncryptionType, FrameHeader, FrameType, Message, MessageType};
 use crate::protos::ServiceDiscoveryRequestMessage::ServiceDiscoveryRequest;
 use crate::protos::ServiceDiscoveryResponseMessage::ServiceDiscoveryResponse;
 
-pub fn create_version_request_message() -> Message {
+pub fn create_version_request_message(own_version: &crate::data::android_auto_entity::Version) -> Message {
     log::info!("Creating version request message");
     let mut version_buffer = [0u8; 4];
-    version_buffer[0] = 1u8.to_be();
-    version_buffer[2] = 1u8.to_be();
+    version_buffer[0] = own_version.major.to_be_bytes()[0];
+    version_buffer[1] = own_version.major.to_be_bytes()[1];
+    version_buffer[2] = own_version.minor.to_be_bytes()[0];
+    version_buffer[3] = own_version.minor.to_be_bytes()[1];
     let frame_header = FrameHeader {
         encryption_type: EncryptionType::Plain,
         message_type: MessageType::Specific,
@@ -94,7 +98,7 @@ pub fn create_audio_focus_response_message() -> Message {
     message
 }
 
-fn handle_version_response(payload: Vec<u8>) {
+fn handle_version_response(payload: Vec<u8>, data: &mut AndroidAutoEntityData) {
     log::debug!("Received raw version response {:?}", payload);
     let mut payload_slice = payload.clone().as_slice();
     let mut rdr = Cursor::new(payload);
@@ -103,6 +107,10 @@ fn handle_version_response(payload: Vec<u8>) {
     let minor = rdr.read_u16::<BigEndian>().unwrap();
     let version_match_int = rdr.read_u16::<BigEndian>().unwrap();
     let version_match = VersionResponseStatus::from(version_match_int);
+    data.version.remote_version.major = major;
+    data.version.remote_version.minor = minor;
+    data.version.version_match = version_match_int == 1;
+    data.messenger_status = MessengerStatus::VersionRequestDone;
     log::info!("Received version response: {}.{} ({:?})", major, minor, version_match);
 }
 
@@ -160,7 +168,7 @@ fn handle_audio_focus_request(payload: Vec<u8>) {
     dbg!(message);
 }
 
-pub fn handle_message(message: &Message) {
+pub fn handle_message(message: &Message, data: &mut AndroidAutoEntityData) {
     log::info!("Received message in control service channel: {:?}", message);
     let payload = message.clone().payload;
     let message_id_word = u16::from_be_bytes([payload.as_slice()[0], payload.as_slice()[1]]);
@@ -168,7 +176,7 @@ pub fn handle_message(message: &Message) {
     let message_id = ControlMessageID::from(message_id_word as u8);
     log::info!("Message ID: {:?}", message_id);
     match message_id {
-        ControlMessageID::VersionResponse => { handle_version_response(payload[2..].to_vec()) }
+        ControlMessageID::VersionResponse => { handle_version_response(payload[2..].to_vec(), data) }
         ControlMessageID::SSLHandshake => { handle_ssl_handshake(payload[2..].to_vec()) }
         ControlMessageID::ServiceDiscoveryRequest => { handle_service_discovery_request(payload[2..].to_vec()) }
         ControlMessageID::AudioFocusRequest => { handle_audio_focus_request(payload[2..].to_vec()) }

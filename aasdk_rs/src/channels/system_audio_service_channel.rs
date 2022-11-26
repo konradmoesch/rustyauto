@@ -3,6 +3,7 @@ use crate::messenger::message::{ChannelID, EncryptionType, FrameHeader, FrameTyp
 use protobuf::Message as protomsg;
 use crate::channels::av_input_service_channel::AVMessageID;
 use crate::channels::control_service_channel::ControlMessageID;
+use crate::data::android_auto_entity::AndroidAutoEntityData;
 
 fn handle_channel_open_request(message: &Message) {
     log::info!("Received channel open request for system_audio_channel");
@@ -12,7 +13,7 @@ fn handle_av_channel_setup_request(message: &Message) {
     log::info!("Received setup request for system_audio_channel");
 }
 
-pub fn handle_message(message: &Message) {
+pub fn handle_message(message: &Message, data: &mut AndroidAutoEntityData) {
     log::info!("Received message in system audio service channel: {:?}", message);
     let payload = message.clone().payload;
     let message_id_word = u16::from_be_bytes([payload.as_slice()[0], payload.as_slice()[1]]);

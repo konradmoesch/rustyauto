@@ -1,4 +1,5 @@
 use crate::channels;
+use crate::data::android_auto_entity::AndroidAutoEntityData;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum EncryptionType {
@@ -107,20 +108,20 @@ impl Message {
         to_return
     }
 
-    pub fn handle(&self) {
+    pub fn handle(&self, data: &mut AndroidAutoEntityData) {
         /*if self.frame_header.encryption_type == EncryptionType::Encrypted {
             log::info!("Encrypted message, decrypting now");
         } else {*/
         log::debug!("Channel ID: {:?}", self.channel_id);
         match self.channel_id {
-            ChannelID::Control => { channels::control_service_channel::handle_message(self) }
-            ChannelID::AVInput => { channels::av_input_service_channel::handle_message(self) }
-            ChannelID::MediaAudio => { channels::media_audio_service_channel::handle_message(self) }
-            ChannelID::SpeechAudio => { channels::speech_audio_service_channel::handle_message(self) }
-            ChannelID::SystemAudio => { channels::system_audio_service_channel::handle_message(self) }
-            ChannelID::Sensor => { channels::sensor_service_channel::handle_message(self) }
-            ChannelID::Video => { channels::video_service_channel::handle_message(self) }
-            ChannelID::Input => { channels::input_service_channel::handle_message(self) }
+            ChannelID::Control => { channels::control_service_channel::handle_message(self, data) }
+            ChannelID::AVInput => { channels::av_input_service_channel::handle_message(self, data) }
+            ChannelID::MediaAudio => { channels::media_audio_service_channel::handle_message(self, data) }
+            ChannelID::SpeechAudio => { channels::speech_audio_service_channel::handle_message(self, data) }
+            ChannelID::SystemAudio => { channels::system_audio_service_channel::handle_message(self, data) }
+            ChannelID::Sensor => { channels::sensor_service_channel::handle_message(self, data) }
+            ChannelID::Video => { channels::video_service_channel::handle_message(self, data) }
+            ChannelID::Input => { channels::input_service_channel::handle_message(self, data) }
             _ => { todo!() }
         }
         //}

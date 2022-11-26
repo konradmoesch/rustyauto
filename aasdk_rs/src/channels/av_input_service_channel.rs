@@ -1,8 +1,9 @@
 use crate::messenger;
 use crate::messenger::message::{ChannelID, EncryptionType, FrameHeader, FrameType, Message, MessageType};
 use protobuf::Message as protomsg;
+use crate::data::android_auto_entity::AndroidAutoEntityData;
 
-pub fn handle_message(message: &Message) {
+pub fn handle_message(message: &Message, data: &mut AndroidAutoEntityData) {
     log::info!("Received message in av input service channel: {:?}", message);
     let payload = message.clone().payload;
     let message_id_word = u16::from_be_bytes([payload.as_slice()[0], payload.as_slice()[1]]);

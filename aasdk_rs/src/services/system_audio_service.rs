@@ -1,9 +1,9 @@
 use crate::services::service::Service;
 use crate::protos::ServiceDiscoveryResponseMessage::ServiceDiscoveryResponse;
 
-pub struct SystemAudioService {}
+pub struct SystemAudioServiceData {}
 
-impl Service for SystemAudioService {
+impl Service for SystemAudioServiceData {
     fn start(&mut self) {
         log::info!("Start");
     }

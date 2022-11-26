@@ -4,10 +4,11 @@ mod constants;
 pub mod usbdriver;
 pub mod messenger;
 pub mod channels;
-pub mod androidautoentity;
+pub mod legacy_androidautoentity;
 pub mod cryptor;
 mod utils;
 mod services;
+pub mod data;
 
 /*pub mod messages {
     include!(concat!(env!("OUT_DIR"), "/aasdk.proto.messages.rs"));

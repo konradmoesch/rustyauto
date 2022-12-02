@@ -51,7 +51,7 @@ pub fn create_channel_open_response_message() -> Message {
     };
     let mut channel_open_response = crate::protos::ChannelOpenResponseMessage::ChannelOpenResponse::new();
     channel_open_response.set_status(crate::protos::StatusEnum::status::Enum::OK);
-    let mut payload = (crate::channels::control_service_channel::ControlMessageID::ChannelOpenResponse as u16).to_be_bytes().to_vec();
+    let mut payload = (crate::channels::control::message_ids::ControlMessageID::ChannelOpenResponse as u16).to_be_bytes().to_vec();
     let mut bytes = channel_open_response.write_to_bytes().unwrap();
     println!("{:x?}", bytes);
     payload.extend(bytes);

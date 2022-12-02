@@ -58,12 +58,12 @@ impl LegacyAndroidAutoEntity {
             }
         });
 
-        let version_request_message = channels::control_service_channel::create_version_request_message();
+        let version_request_message = channels::control::control_service_channel::create_version_request_message();
         out_queue_tx.send(version_request_message.clone()).unwrap();
         in_queue_tx.send((1)).unwrap();
         loop {}*/
         let own_version = Version { major: 1, minor: 0 };
-        let version_request_message = channels::control_service_channel::create_version_request_message(&own_version);
+        let version_request_message = channels::control::control_service_channel::create_version_request_message(own_version);
         self.messenger.send_message(version_request_message);
 
         let received_message = self.messenger.receive_message(12);
@@ -72,7 +72,7 @@ impl LegacyAndroidAutoEntity {
         self.cryptor.do_handshake();
 
         log::info!("Sending handshake message");
-        let handshake_message = channels::control_service_channel::create_handshake_message(self.cryptor.read_handshake_buffer().as_slice());
+        let handshake_message = channels::control::control_service_channel::create_handshake_message(self.cryptor.read_handshake_buffer().as_slice());
         log::debug!("{:?}", handshake_message);
         self.messenger.send_message(handshake_message);
 
@@ -84,7 +84,7 @@ impl LegacyAndroidAutoEntity {
         self.cryptor.do_handshake();
 
         log::info!("Continuing handshake");
-        let handshake_message = channels::control_service_channel::create_handshake_message(self.cryptor.read_handshake_buffer().as_slice());
+        let handshake_message = channels::control::control_service_channel::create_handshake_message(self.cryptor.read_handshake_buffer().as_slice());
         log::debug!("{:?}", handshake_message);
         self.messenger.send_message(handshake_message);
 
@@ -96,7 +96,7 @@ impl LegacyAndroidAutoEntity {
         self.cryptor.do_handshake();
         // check successful
 
-        let auth_complete_message = channels::control_service_channel::create_auth_complete_message();
+        let auth_complete_message = channels::control::control_service_channel::create_auth_complete_message();
         log::debug!("{:?}", auth_complete_message);
         self.messenger.send_message(auth_complete_message);
 
@@ -162,7 +162,7 @@ impl LegacyAndroidAutoEntity {
         }
         println!();*/
 
-        let mut service_discovery_response_message = channels::control_service_channel::create_service_discovery_response_message(service_disc_res);
+        let mut service_discovery_response_message = channels::control::control_service_channel::create_service_discovery_response_message(service_disc_res);
         self.cryptor.encrypt_message(&mut service_discovery_response_message);
         self.messenger.send_message(service_discovery_response_message);
 
@@ -170,7 +170,7 @@ impl LegacyAndroidAutoEntity {
         self.cryptor.decrypt_message(&mut received_message);
         //received_message.handle();
 
-        let mut audio_focus_response_message = channels::control_service_channel::create_audio_focus_response_message();
+        let mut audio_focus_response_message = channels::control::control_service_channel::create_audio_focus_response_message();
         self.cryptor.encrypt_message(&mut audio_focus_response_message);
         self.messenger.send_message(audio_focus_response_message);
 

@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 use crate::data::messenger::MessengerStatus;
 use crate::data::services::audio_input_service_data::AudioInputServiceData;
 use crate::data::services::input_service_data::InputServiceData;
@@ -7,7 +9,7 @@ use crate::data::services::speech_audio_service_data::SpeechAudioServiceData;
 use crate::data::services::system_audio_service_data::SystemAudioServiceData;
 use crate::data::services::video_service_data::VideoServiceData;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub enum AutoEntityStatus {
     Uninitialized,
     Initialized,
@@ -27,9 +29,16 @@ pub struct AndroidAutoConfig {
     pub hide_clock: bool,
 }
 
+#[derive(Copy, Clone)]
 pub struct Version {
     pub major: u16,
     pub minor: u16,
+}
+
+impl Version {
+    pub fn to_bytes(&self) -> [u8; 4] {
+        return [self.major.to_be_bytes()[0], self.major.to_be_bytes()[1], self.minor.to_be_bytes()[0], self.minor.to_be_bytes()[1]];
+    }
 }
 
 pub struct VersionStatus {
@@ -39,39 +48,57 @@ pub struct VersionStatus {
 }
 
 pub struct AndroidAutoEntityData {
-    pub status: AutoEntityStatus,
-    pub messenger_status: MessengerStatus,
-    pub version: VersionStatus,
-    config: AndroidAutoConfig,
-    audio_input_service_data: AudioInputServiceData,
-    media_audio_service_data: MediaAudioServiceData,
-    speech_audio_service_data: SpeechAudioServiceData,
-    system_audio_service_data: SystemAudioServiceData,
-    sensor_service_data: SensorServiceData,
-    video_service_data: VideoServiceData,
-    //bluetooth_service_data: BluetoothServiceData,
-    input_service_data: InputServiceData,
-    //wifi_service_data: WifiServiceData,
+    pub status: Arc<RwLock<AutoEntityStatus>>,
+    pub messenger_status: Arc<RwLock<MessengerStatus>>,
+    pub version: Arc<RwLock<VersionStatus>>,
+    config: Arc<AndroidAutoConfig>,
+    pub audio_input_service_data: Arc<RwLock<AudioInputServiceData>>,
+    pub media_audio_service_data: Arc<RwLock<MediaAudioServiceData>>,
+    pub speech_audio_service_data: Arc<RwLock<SpeechAudioServiceData>>,
+    pub system_audio_service_data: Arc<RwLock<SystemAudioServiceData>>,
+    pub sensor_service_data: Arc<RwLock<SensorServiceData>>,
+    pub video_service_data: Arc<RwLock<VideoServiceData>>,
+    //pub bluetooth_service_data: BluetoothServiceData,
+    pub input_service_data: Arc<RwLock<InputServiceData>>,
+    //pub wifi_service_data: WifiServiceData,
+}
+
+impl Clone for AndroidAutoEntityData {
+    fn clone(&self) -> Self {
+        AndroidAutoEntityData {
+            status: self.status.clone(),
+            messenger_status: self.messenger_status.clone(),
+            version: self.version.clone(),
+            config: self.config.clone(),
+            audio_input_service_data: self.audio_input_service_data.clone(),
+            media_audio_service_data: self.media_audio_service_data.clone(),
+            speech_audio_service_data: self.speech_audio_service_data.clone(),
+            system_audio_service_data: self.system_audio_service_data.clone(),
+            sensor_service_data: self.sensor_service_data.clone(),
+            video_service_data: self.video_service_data.clone(),
+            input_service_data: self.input_service_data.clone(),
+        }
+    }
 }
 
 impl AndroidAutoEntityData {
     pub fn new(config: AndroidAutoConfig) -> Self {
         AndroidAutoEntityData {
-            status: AutoEntityStatus::Uninitialized,
-            messenger_status: MessengerStatus::Uninitialized,
-            version: VersionStatus {
+            status: Arc::new(RwLock::new(AutoEntityStatus::Uninitialized)),
+            messenger_status: Arc::new(RwLock::new(MessengerStatus::Uninitialized)),
+            version: Arc::new(RwLock::new(VersionStatus {
                 own_version: Version { major: 1, minor: 0 },
                 remote_version: Version { major: 0, minor: 0 },
                 version_match: false,
-            },
-            config,
-            audio_input_service_data: AudioInputServiceData::new(),
-            media_audio_service_data: MediaAudioServiceData::new(),
-            speech_audio_service_data: SpeechAudioServiceData::new(),
-            system_audio_service_data: SystemAudioServiceData::new(),
-            sensor_service_data: SensorServiceData::new(),
-            video_service_data: VideoServiceData::new(),
-            input_service_data: InputServiceData::new(),
+            })),
+            config: Arc::new(config),
+            audio_input_service_data: Arc::new(RwLock::new(AudioInputServiceData::new())),
+            media_audio_service_data: Arc::new(RwLock::new(MediaAudioServiceData::new())),
+            speech_audio_service_data: Arc::new(RwLock::new(SpeechAudioServiceData::new())),
+            system_audio_service_data: Arc::new(RwLock::new(SystemAudioServiceData::new())),
+            sensor_service_data: Arc::new(RwLock::new(SensorServiceData::new())),
+            video_service_data: Arc::new(RwLock::new(VideoServiceData::new())),
+            input_service_data: Arc::new(RwLock::new(InputServiceData::new())),
         }
     }
 }

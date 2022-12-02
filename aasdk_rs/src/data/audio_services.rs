@@ -1,3 +1,4 @@
+#[derive(Copy, Clone)]
 pub struct AudioConfig {
     pub sample_rate: usize,
     pub bit_depth: usize,

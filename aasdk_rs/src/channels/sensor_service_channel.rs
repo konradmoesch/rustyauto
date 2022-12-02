@@ -1,6 +1,6 @@
 use protobuf::Message as protomsg;
 
-use crate::channels::control_service_channel::ControlMessageID;
+use crate::channels::control::message_ids::ControlMessageID;
 use crate::data::android_auto_entity::AndroidAutoEntityData;
 use crate::messenger;
 use crate::messenger::message::{ChannelID, EncryptionType, FrameHeader, FrameType, Message, MessageType};
@@ -32,7 +32,7 @@ pub fn handle_message(message: &Message, data: &mut AndroidAutoEntityData) {
             }
         }
         MessageType::Control => {
-            match crate::channels::control_service_channel::ControlMessageID::from(message_id_word as u8) {
+            match crate::channels::control::message_ids::ControlMessageID::from(message_id_word as u8) {
                 ControlMessageID::ChannelOpenRequest => {
                     handle_channel_open_request(message);
                 }
@@ -54,7 +54,7 @@ pub fn create_channel_open_response_message() -> Message {
     };
     let mut channel_open_response = crate::protos::ChannelOpenResponseMessage::ChannelOpenResponse::new();
     channel_open_response.set_status(crate::protos::StatusEnum::status::Enum::OK);
-    let mut payload = (crate::channels::control_service_channel::ControlMessageID::ChannelOpenResponse as u16).to_be_bytes().to_vec();
+    let mut payload = (crate::channels::control::message_ids::ControlMessageID::ChannelOpenResponse as u16).to_be_bytes().to_vec();
     let mut bytes = channel_open_response.write_to_bytes().unwrap();
     //println!("{:x?}", bytes);
     payload.extend(bytes);

@@ -47,7 +47,7 @@ impl Messenger {
     pub fn init(usb_driver: UsbDriver) -> Self {
         Messenger { usb_driver }
     }
-    pub fn run(&mut self, in_rx: &Receiver<i32>, out_rx: &Receiver<Message>) {
+    /*pub fn run(&mut self, in_rx: &Receiver<i32>, out_rx: &Receiver<Message>) {
         //log::debug!("Running");
         if let Ok(message_to_send) = out_rx.try_recv() {
             log::debug!("Received message to send!");
@@ -65,7 +65,7 @@ impl Messenger {
                 if e != std::sync::mpsc::TryRecvError::Empty { log::error!("Error receiving on in_rx: {}",e); }
             }
         }
-    }/*
+    }
     pub fn enqueue_receive(&mut self, to_receive: Message) {
         self.in_queue.push_back(to_receive);
     }

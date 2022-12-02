@@ -62,16 +62,14 @@ fn main() {
 
             let mut android_auto_entity_data = aasdk_rs::data::android_auto_entity::AndroidAutoEntityData::new(auto_entity_config);
 
-            let data = Arc::new(Mutex::new(android_auto_entity_data));
-            let messenger_data = data.clone();
+            let mut messenger_data = android_auto_entity_data.clone();
 
             let mut messenger = Messenger { cryptor: Cryptor::init(), usb_driver };
 
             let messenger_thread = std::thread::spawn(move || {
                 loop {
                     {
-                        let mut recv_data = messenger_data.lock().unwrap();
-                        messenger.run(recv_data.deref_mut());
+                        messenger.run(&mut messenger_data);
                     }
                     std::thread::sleep(std::time::Duration::from_millis(300));
                 }
@@ -79,9 +77,9 @@ fn main() {
 
             loop {
                 {
-                    let aa_data = data.lock().unwrap();
-                    log::debug!("{:?}", aa_data.status);
-                    if aa_data.status == data::android_auto_entity::AutoEntityStatus::Uninitialized {
+                    let current_status = (*android_auto_entity_data.status.read().unwrap()).clone();
+                    log::debug!("{:?}", current_status);
+                    if current_status == data::android_auto_entity::AutoEntityStatus::Uninitialized {
                         log::debug!("UNINITIALIZED");
                     } else {
                         //run services

@@ -3,8 +3,8 @@ use crate::data::android_auto_entity::AndroidAutoEntityData;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum EncryptionType {
-    Plain = 0,
-    Encrypted = 1 << 3,
+    Plain = 0, //0
+    Encrypted = 1 << 3, //1000
 }
 
 impl From<u8> for EncryptionType {
@@ -18,8 +18,8 @@ impl From<u8> for EncryptionType {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MessageType {
-    Specific = 0,
-    Control = 0b100,
+    Specific = 0, //0
+    Control = 0b100, //100
 }
 
 impl From<u8> for MessageType {
@@ -33,10 +33,10 @@ impl From<u8> for MessageType {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum FrameType {
-    Middle = 0,
-    First = 1,
-    Last = 2,
-    Bulk = 3,
+    Middle = 0, //0
+    First = 1, //1
+    Last = 2, //10
+    Bulk = 3, //11
 }
 
 impl From<u8> for FrameType {
@@ -114,7 +114,7 @@ impl Message {
         } else {*/
         log::debug!("Channel ID: {:?}", self.channel_id);
         match self.channel_id {
-            ChannelID::Control => { channels::control_service_channel::handle_message(self, data) }
+            ChannelID::Control => { channels::control::control_service_channel::handle_message(self, data) }
             ChannelID::AVInput => { channels::av_input_service_channel::handle_message(self, data) }
             ChannelID::MediaAudio => { channels::media_audio_service_channel::handle_message(self, data) }
             ChannelID::SpeechAudio => { channels::speech_audio_service_channel::handle_message(self, data) }

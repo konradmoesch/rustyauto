@@ -1,7 +1,9 @@
 use std::io::Cursor;
 
-use openssl::ssl::{SslContextBuilder, SslMethod};
+use openssl::ssl::{ErrorCode, SslContextBuilder, SslMethod};
 
+use crate::data;
+use crate::data::messenger::HandshakeStatus;
 use crate::messenger::message::EncryptionType;
 
 pub struct Cryptor {
@@ -35,14 +37,23 @@ impl Cryptor {
         Self { ssl_context, ssl_stream, old_position: 0 }
     }
 
-    pub fn do_handshake(&mut self) {
+    pub fn do_handshake(&mut self) -> HandshakeStatus {
         log::info!("Doing SSL handshake");
         match self.ssl_stream.do_handshake() {
-            Ok(_) => { log::info!("Successfully did handshake"); }
-            Err(e) => {
-                log::error!("ssl handshake error: {:?}", e);
+            Ok(_) => {
+                log::info!("Successfully did handshake");
+                HandshakeStatus::Complete
             }
-        };
+            Err(e) => {
+                if e.code() == ErrorCode::from_raw(5) {
+                    log::info!("Handshake incomplete");
+                    HandshakeStatus::Unfinished
+                } else {
+                    log::error!("ssl handshake error: {:?}", e);
+                    HandshakeStatus::Error
+                }
+            }
+        }
     }
 
     pub fn read_handshake_buffer(&mut self) -> Vec<u8> {

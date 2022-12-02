@@ -5,6 +5,7 @@ pub enum NightSensorStatus {
     Day,
 }
 
+#[derive(Copy, Clone)]
 pub struct SensorServiceConfig {
     pub location_sensor_present: bool,
 }

@@ -1,27 +1,30 @@
 use crate::data::services::general::ServiceStatus;
 
+#[derive(Copy, Clone)]
 pub enum VideoResolution {
     _480p,
     _720p,
     _1080p,
 }
 
+#[derive(Copy, Clone)]
 pub enum VideoFPS {
     _30,
     _60,
 }
 
+#[derive(Copy, Clone)]
 pub struct VideoServiceConfig {
-    video_resolution: VideoResolution,
-    video_fps: VideoFPS,
-    margin_height: usize,
-    margin_width: usize,
-    dpi: usize,
+    pub video_resolution: VideoResolution,
+    pub video_fps: VideoFPS,
+    pub margin_height: usize,
+    pub margin_width: usize,
+    pub dpi: usize,
 }
 
 pub struct VideoServiceData {
-    status: crate::data::services::general::ServiceStatus,
-    config: VideoServiceConfig,
+    pub status: crate::data::services::general::ServiceStatus,
+    pub config: VideoServiceConfig,
 }
 
 impl VideoServiceData {

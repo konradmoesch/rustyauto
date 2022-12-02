@@ -1,6 +1,6 @@
 pub trait Payload {
     fn as_slice(&self) -> &[u8];
-    fn from_slice(bytes: &[u8]) -> Self;
+    fn from_slice(bytes: &[u8]) -> Self where Self: Sized;
 }
 
 struct PlainPayload {

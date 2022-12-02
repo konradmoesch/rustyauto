@@ -1,4 +1,4 @@
-pub mod control_service_channel;
+pub mod control;
 pub mod av_input_service_channel;
 pub mod media_audio_service_channel;
 pub mod speech_audio_service_channel;

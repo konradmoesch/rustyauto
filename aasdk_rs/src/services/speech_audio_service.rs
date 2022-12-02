@@ -1,3 +1,4 @@
+use crate::data::android_auto_entity::AndroidAutoEntityData;
 use crate::services::service::Service;
 use crate::protos::ServiceDiscoveryResponseMessage::ServiceDiscoveryResponse;
 
@@ -24,7 +25,7 @@ impl Service for SpeechAudioService {
         log::info!("Fill Features");
 
         let mut channel_descriptor = crate::protos::ChannelDescriptorData::ChannelDescriptor::default();
-        channel_descriptor.set_channel_id(crate::messenger::message::ChannelID::SpeechAudio as u32);
+        channel_descriptor.set_channel_id(crate::messenger::frame::ChannelID::SpeechAudio as u32);
 
         let mut audio_channel = crate::protos::AVChannelData::AVChannel::default();
         audio_channel.set_stream_type(crate::protos::AVStreamTypeEnum::avstream_type::Enum::AUDIO);
@@ -52,5 +53,9 @@ impl Service for SpeechAudioService {
         println!();
 
         response.channels.push(channel_descriptor);
+    }
+
+    fn run(&mut self, data: &mut AndroidAutoEntityData) {
+        log::debug!("Running SpeechAudioService");
     }
 }

@@ -1,3 +1,4 @@
+use crate::data::android_auto_entity::AndroidAutoEntityData;
 use crate::services::service::Service;
 use crate::protos::ServiceDiscoveryResponseMessage::ServiceDiscoveryResponse;
 
@@ -42,5 +43,9 @@ impl Service for WifiService {
         println!();
 
         response.channels.push(channel_descriptor);
+    }
+
+    fn run(&mut self, data: &mut AndroidAutoEntityData) {
+        todo!()
     }
 }

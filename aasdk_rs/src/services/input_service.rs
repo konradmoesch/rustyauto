@@ -1,3 +1,4 @@
+use crate::data::android_auto_entity::AndroidAutoEntityData;
 use crate::services::service::Service;
 use crate::protos::ServiceDiscoveryResponseMessage::ServiceDiscoveryResponse;
 
@@ -7,7 +8,6 @@ impl Service for InputService {
     fn start(&mut self) {
         log::info!("Start");
     }
-
     fn stop(&mut self) {
         log::info!("Stop");
     }
@@ -24,7 +24,7 @@ impl Service for InputService {
         log::info!("Fill Features");
 
         let mut channel_descriptor = crate::protos::ChannelDescriptorData::ChannelDescriptor::default();
-        channel_descriptor.set_channel_id(crate::messenger::message::ChannelID::Input as u32);
+        channel_descriptor.set_channel_id(crate::messenger::frame::ChannelID::Input as u32);
 
         //TODO: Initialize input and use real values
         //TODO: fix the missing FFFFFF in touch config fields
@@ -49,5 +49,9 @@ impl Service for InputService {
         println!();
 
         response.channels.push(channel_descriptor);
+    }
+
+    fn run(&mut self, data: &mut AndroidAutoEntityData) {
+        todo!()
     }
 }

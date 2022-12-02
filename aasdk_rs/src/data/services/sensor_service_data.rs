@@ -1,5 +1,6 @@
 use crate::data::services::general::ServiceStatus;
 
+#[derive(Debug)]
 pub enum NightSensorStatus {
     Night,
     Day,
@@ -22,7 +23,7 @@ impl SensorServiceData {
         SensorServiceData {
             service_status: ServiceStatus::Uninitialized,
             config: SensorServiceConfig { location_sensor_present: false },
-            night_sensor: NightSensorStatus::Night,
+            night_sensor: NightSensorStatus::Day,
         }
     }
 }

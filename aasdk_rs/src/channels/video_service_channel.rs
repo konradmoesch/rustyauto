@@ -1,5 +1,5 @@
 use crate::messenger;
-use crate::messenger::message::{ChannelID, EncryptionType, FrameHeader, FrameType, Message, MessageType};
+use crate::messenger::frame::{ChannelID, EncryptionType, FrameHeader, FrameType, Frame, MessageType};
 use protobuf::Message as protomsg;
 use crate::channels::av_input_service_channel::AVMessageID;
 use crate::channels::control::message_ids::ControlMessageID;
@@ -7,11 +7,11 @@ use crate::cryptor::Cryptor;
 use crate::data::android_auto_entity::AndroidAutoEntityData;
 use crate::usbdriver::UsbDriver;
 
-fn handle_channel_open_request(message: &Message) {
+fn handle_channel_open_request(message: &Frame) {
     log::info!("Received channel open request for video_channel");
 }
 
-pub fn handle_message(message: &Message, data: &mut AndroidAutoEntityData) {
+pub fn handle_message(message: &Frame, data: &mut AndroidAutoEntityData) {
     log::info!("Received message in video service channel: {:?}", message);
     let payload = message.clone().payload;
     let message_id_word = u16::from_be_bytes([payload.as_slice()[0], payload.as_slice()[1]]);
@@ -55,7 +55,7 @@ pub fn handle_message(message: &Message, data: &mut AndroidAutoEntityData) {
     log::info!("Message ID (raw): {:?}", message_id_word);
 }
 
-pub fn create_channel_open_response_message() -> Message {
+pub fn create_channel_open_response_message() -> Frame {
     log::info!("Creating channel open response message for video channel");
     let frame_header = FrameHeader {
         encryption_type: EncryptionType::Encrypted,
@@ -69,11 +69,11 @@ pub fn create_channel_open_response_message() -> Message {
     //println!("{:x?}", bytes);
     payload.extend(bytes);
     //println!("{:x?}", payload);
-    let message = messenger::message::Message { frame_header, channel_id: ChannelID::Video, payload };
+    let message = messenger::frame::Frame { frame_header, channel_id: ChannelID::Video, payload };
     message
 }
 
-pub fn create_av_channel_setup_response(video_setup_request: Message) -> Message {
+pub fn create_av_channel_setup_response(video_setup_request: Frame) -> Frame {
     let payload = video_setup_request.payload.as_slice().clone();
     let video_channel_setup_request = crate::protos::AVChannelSetupRequestMessage::AVChannelSetupRequest::parse_from_bytes(&payload[2..]).unwrap();
     log::info!("Creating av channel setup response message for video service channel, config: {}", video_channel_setup_request.config_index());
@@ -91,11 +91,11 @@ pub fn create_av_channel_setup_response(video_setup_request: Message) -> Message
     //println!("{:x?}", bytes);
     payload.extend(bytes);
     //println!("{:x?}", payload);
-    let message = messenger::message::Message { frame_header, channel_id: ChannelID::Video, payload };
+    let message = messenger::frame::Frame { frame_header, channel_id: ChannelID::Video, payload };
     message
 }
 
-pub fn create_video_focus_indication() -> Message {
+pub fn create_video_focus_indication() -> Frame {
     log::info!("Creating video focus indication");
     let frame_header = FrameHeader {
         encryption_type: EncryptionType::Encrypted,
@@ -110,11 +110,11 @@ pub fn create_video_focus_indication() -> Message {
     //println!("{:x?}", bytes);
     payload.extend(bytes);
     //println!("{:x?}", payload);
-    let message = messenger::message::Message { frame_header, channel_id: ChannelID::Video, payload };
+    let message = messenger::frame::Frame { frame_header, channel_id: ChannelID::Video, payload };
     message
 }
 
-pub fn create_av_media_ack_indication() -> Message {
+pub fn create_av_media_ack_indication() -> Frame {
     log::info!("Creating av media ack indication");
     let frame_header = FrameHeader {
         encryption_type: EncryptionType::Encrypted,
@@ -129,7 +129,7 @@ pub fn create_av_media_ack_indication() -> Message {
     //println!("{:x?}", bytes);
     payload.extend(bytes);
     //println!("{:x?}", payload);
-    let message = messenger::message::Message { frame_header, channel_id: ChannelID::Video, payload};
+    let message = messenger::frame::Frame { frame_header, channel_id: ChannelID::Video, payload};
     message
 
 }

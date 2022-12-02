@@ -1,19 +1,19 @@
 use crate::messenger;
-use crate::messenger::message::{ChannelID, EncryptionType, FrameHeader, FrameType, Message, MessageType};
+use crate::messenger::frame::{ChannelID, EncryptionType, FrameHeader, FrameType, Frame, MessageType};
 use protobuf::Message as protomsg;
 use crate::channels::av_input_service_channel::AVMessageID;
 use crate::channels::control::message_ids::ControlMessageID;
 use crate::data::android_auto_entity::AndroidAutoEntityData;
 
-fn handle_channel_open_request(message: &Message) {
+fn handle_channel_open_request(message: &Frame) {
     log::info!("Received channel open request for speech_audio_channel");
 }
 
-fn handle_av_channel_setup_request(message: &Message) {
+fn handle_av_channel_setup_request(message: &Frame) {
     log::info!("Received setup request for speech_audio_channel");
 }
 
-pub fn handle_message(message: &Message, data: &mut AndroidAutoEntityData) {
+pub fn handle_message(message: &Frame, data: &mut AndroidAutoEntityData) {
     log::info!("Received message in speech audio service channel: {:?}", message);
     let payload = message.clone().payload;
     let message_id_word = u16::from_be_bytes([payload.as_slice()[0], payload.as_slice()[1]]);
@@ -46,7 +46,7 @@ pub fn handle_message(message: &Message, data: &mut AndroidAutoEntityData) {
     log::info!("Message ID (raw): {:?}", message_id_word);
 }
 
-pub fn create_channel_open_response_message() -> Message {
+pub fn create_channel_open_response_message() -> Frame {
     log::info!("Creating channel open response message");
     let frame_header = FrameHeader {
         encryption_type: EncryptionType::Encrypted,
@@ -60,6 +60,6 @@ pub fn create_channel_open_response_message() -> Message {
     //println!("{:x?}", bytes);
     payload.extend(bytes);
     //println!("{:x?}", payload);
-    let message = messenger::message::Message { frame_header, channel_id: ChannelID::SpeechAudio, payload };
+    let message = messenger::frame::Frame { frame_header, channel_id: ChannelID::SpeechAudio, payload };
     message
 }

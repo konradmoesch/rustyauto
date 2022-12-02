@@ -5,7 +5,7 @@ use crate::cryptor::Cryptor;
 use crate::data::android_auto_entity::AndroidAutoEntityData;
 use crate::data::messenger::{HandshakeStatus, MessengerStatus};
 use crate::data::services::service_data::{ServiceData, ServiceType};
-use crate::messenger::message::Message;
+use crate::messenger::frame::Frame;
 use crate::usbdriver::UsbDriver;
 
 pub struct Messenger {
@@ -16,7 +16,7 @@ pub struct Messenger {
 fn fill_service_features(sdr: &mut crate::protos::ServiceDiscoveryResponseMessage::ServiceDiscoveryResponse, data: &mut AndroidAutoEntityData) {
     //AudioInput
     let mut channel_descriptor = crate::protos::ChannelDescriptorData::ChannelDescriptor::default();
-    channel_descriptor.set_channel_id(crate::messenger::message::ChannelID::AVInput as u32);
+    channel_descriptor.set_channel_id(crate::messenger::frame::ChannelID::AVInput as u32);
 
     let mut audio_input_channel = crate::protos::AVInputChannelData::AVInputChannel::default();
     let mut audio_config = crate::protos::AudioConfigData::AudioConfig::new();
@@ -35,7 +35,7 @@ fn fill_service_features(sdr: &mut crate::protos::ServiceDiscoveryResponseMessag
     sdr.channels.push(channel_descriptor);
     //MediaAudio
     let mut channel_descriptor = crate::protos::ChannelDescriptorData::ChannelDescriptor::default();
-    channel_descriptor.set_channel_id(crate::messenger::message::ChannelID::MediaAudio as u32);
+    channel_descriptor.set_channel_id(crate::messenger::frame::ChannelID::MediaAudio as u32);
 
     let mut audio_channel = crate::protos::AVChannelData::AVChannel::default();
     audio_channel.set_stream_type(crate::protos::AVStreamTypeEnum::avstream_type::Enum::AUDIO);
@@ -57,7 +57,7 @@ fn fill_service_features(sdr: &mut crate::protos::ServiceDiscoveryResponseMessag
     sdr.channels.push(channel_descriptor);
     //SpeechAudio
     let mut channel_descriptor = crate::protos::ChannelDescriptorData::ChannelDescriptor::default();
-    channel_descriptor.set_channel_id(crate::messenger::message::ChannelID::SpeechAudio as u32);
+    channel_descriptor.set_channel_id(crate::messenger::frame::ChannelID::SpeechAudio as u32);
 
     let mut audio_channel = crate::protos::AVChannelData::AVChannel::default();
     audio_channel.set_stream_type(crate::protos::AVStreamTypeEnum::avstream_type::Enum::AUDIO);
@@ -79,7 +79,7 @@ fn fill_service_features(sdr: &mut crate::protos::ServiceDiscoveryResponseMessag
     sdr.channels.push(channel_descriptor);
     //SystemAudio
     let mut channel_descriptor = crate::protos::ChannelDescriptorData::ChannelDescriptor::default();
-    channel_descriptor.set_channel_id(crate::messenger::message::ChannelID::SystemAudio as u32);
+    channel_descriptor.set_channel_id(crate::messenger::frame::ChannelID::SystemAudio as u32);
 
     let mut audio_channel = crate::protos::AVChannelData::AVChannel::default();
     audio_channel.set_stream_type(crate::protos::AVStreamTypeEnum::avstream_type::Enum::AUDIO);
@@ -101,7 +101,7 @@ fn fill_service_features(sdr: &mut crate::protos::ServiceDiscoveryResponseMessag
     sdr.channels.push(channel_descriptor);
     //SensorService
     let mut channel_descriptor = crate::protos::ChannelDescriptorData::ChannelDescriptor::default();
-    channel_descriptor.set_channel_id(crate::messenger::message::ChannelID::Sensor as u32);
+    channel_descriptor.set_channel_id(crate::messenger::frame::ChannelID::Sensor as u32);
 
     let mut sensor_channel = crate::protos::SensorChannelData::SensorChannel::default();
     let mut driving_status_sensor = crate::protos::SensorData::Sensor::new();
@@ -123,7 +123,7 @@ fn fill_service_features(sdr: &mut crate::protos::ServiceDiscoveryResponseMessag
     sdr.channels.push(channel_descriptor);
     //VideoService
     let mut channel_descriptor = crate::protos::ChannelDescriptorData::ChannelDescriptor::default();
-    channel_descriptor.set_channel_id(crate::messenger::message::ChannelID::Video as u32);
+    channel_descriptor.set_channel_id(crate::messenger::frame::ChannelID::Video as u32);
     //TODO: init video output, use real values
     let mut video_channel = crate::protos::AVChannelData::AVChannel::default();
     video_channel.set_stream_type(crate::protos::AVStreamTypeEnum::avstream_type::Enum::VIDEO);
@@ -144,7 +144,7 @@ fn fill_service_features(sdr: &mut crate::protos::ServiceDiscoveryResponseMessag
     //todo BluetoothService
     //InputService
     let mut channel_descriptor = crate::protos::ChannelDescriptorData::ChannelDescriptor::default();
-    channel_descriptor.set_channel_id(crate::messenger::message::ChannelID::Input as u32);
+    channel_descriptor.set_channel_id(crate::messenger::frame::ChannelID::Input as u32);
 
     //TODO: Initialize input and use real values
     //TODO: fix the missing FFFFFF in touch config fields
@@ -244,24 +244,25 @@ impl Messenger {
                 *data.messenger_status.write().unwrap() = MessengerStatus::InitializationDone;
             }
             MessengerStatus::InitializationDone => {
+
                 //run channels
             }
         }
     }
-    fn receive_message_via_usb(&self) -> Message {
+    fn receive_message_via_usb(&self) -> Frame {
         //todo: Max packet size?
         let mut in_buffer = vec![0u8; 9999];
         let size = self.usb_driver.read_buffer(in_buffer.as_mut_slice());
         in_buffer.truncate(size);
-        let received_message = Message::from_data_frame(in_buffer.as_slice());
+        let received_message = Frame::from_data_frame(in_buffer.as_slice());
         received_message
     }
-    pub fn receive_message(&mut self) -> Message {
+    pub fn receive_message(&mut self) -> Frame {
         let mut raw_message = self.receive_message_via_usb();
         self.cryptor.decrypt_message(&mut raw_message);
         raw_message
     }
-    pub fn send_message_via_usb(&mut self, message_to_send: Message) {
+    pub fn send_message_via_usb(&mut self, message_to_send: Frame) {
         self.usb_driver.send_buffer(message_to_send.to_byte_vector().as_slice());
     }
 }

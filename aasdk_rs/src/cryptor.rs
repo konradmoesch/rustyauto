@@ -4,7 +4,7 @@ use openssl::ssl::{ErrorCode, SslContextBuilder, SslMethod};
 
 use crate::data;
 use crate::data::messenger::HandshakeStatus;
-use crate::messenger::message::EncryptionType;
+use crate::messenger::frame::EncryptionType;
 
 pub struct Cryptor {
     ssl_context: openssl::ssl::SslContext,
@@ -109,7 +109,7 @@ impl Cryptor {
         self.ssl_stream.get_ref().get_ref().clone()
     }
 
-    pub fn encrypt_message(&mut self, message_to_encrypt: &mut crate::messenger::message::Message) {
+    pub fn encrypt_message(&mut self, message_to_encrypt: &mut crate::messenger::frame::Frame) {
         match message_to_encrypt.frame_header.encryption_type {
             EncryptionType::Plain => log::warn!("Message is plain text, nothing to do!"),
             EncryptionType::Encrypted => {
@@ -120,7 +120,7 @@ impl Cryptor {
         }
     }
 
-    pub fn decrypt_message(&mut self, message_to_decrypt: &mut crate::messenger::message::Message) {
+    pub fn decrypt_message(&mut self, message_to_decrypt: &mut crate::messenger::frame::Frame) {
         match message_to_decrypt.frame_header.encryption_type {
             EncryptionType::Plain => log::warn!("Message is plain text, nothing to do!"),
             EncryptionType::Encrypted => {

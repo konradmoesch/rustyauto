@@ -1,5 +1,6 @@
-use crate::services::service::Service;
+use crate::data::android_auto_entity::AndroidAutoEntityData;
 use crate::protos::ServiceDiscoveryResponseMessage::ServiceDiscoveryResponse;
+use crate::services::service::Service;
 
 pub struct VideoService {}
 
@@ -7,7 +8,6 @@ impl Service for VideoService {
     fn start(&mut self) {
         log::info!("Start");
     }
-
     fn stop(&mut self) {
         log::info!("Stop");
     }
@@ -24,7 +24,7 @@ impl Service for VideoService {
         log::info!("Fill Features");
 
         let mut channel_descriptor = crate::protos::ChannelDescriptorData::ChannelDescriptor::default();
-        channel_descriptor.set_channel_id(crate::messenger::message::ChannelID::Video as u32);
+        channel_descriptor.set_channel_id(crate::messenger::frame::ChannelID::Video as u32);
         //TODO: init video output, use real values
         let mut video_channel = crate::protos::AVChannelData::AVChannel::default();
         video_channel.set_stream_type(crate::protos::AVStreamTypeEnum::avstream_type::Enum::VIDEO);
@@ -49,5 +49,9 @@ impl Service for VideoService {
         println!();
 
         response.channels.push(channel_descriptor);
+    }
+
+    fn run(&mut self, data: &mut AndroidAutoEntityData) {
+        todo!()
     }
 }

@@ -1,13 +1,11 @@
-use std::arch::x86_64::_mm_rcp_ps;
-use std::ops::DerefMut;
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use aasdk_rs::cryptor::Cryptor;
 use aasdk_rs::data;
 use aasdk_rs::data::android_auto_entity::AndroidAutoConfig;
-use aasdk_rs::data::services::general::ServiceStatus::Uninitialized;
 use aasdk_rs::messenger::messenger::Messenger;
+use aasdk_rs::services::sensor_service::SensorService;
+use aasdk_rs::services::service::Service;
 
 fn setup_logger() -> Result<(), fern::InitError> {
     fern::Dispatch::new()
@@ -39,9 +37,11 @@ fn main() {
         uri: "https://github.com/konradmoesch".to_string(),
         serial_number: "001".to_string(),
     };
-    aoap_rs::try_starting_aoa_mode(aoa_config);
+    //let vendor_ids_to_try: Vec<u16> = vec![0x22d9, 0x18d1];
+    //aoap_rs::try_starting_aoa_mode(aoa_config, Some(vendor_ids_to_try));
+    aoap_rs::try_starting_aoa_mode(aoa_config, None);
     std::thread::sleep(Duration::from_secs(5));
-    match aoap_rs::search_for_device() {
+    match aoap_rs::search_for_device_in_accessory_mode() {
         Some(device) => {
             log::info!("Found aoa-enabled device!");
             let usb_driver = aasdk_rs::usbdriver::UsbDriver::init(device);
@@ -79,6 +79,8 @@ fn main() {
                 {
                     let current_status = (*android_auto_entity_data.status.read().unwrap()).clone();
                     log::debug!("{:?}", current_status);
+                    let mut sensor_service = aasdk_rs::services::sensor_service::SensorService{};
+                    sensor_service.run(&mut android_auto_entity_data);
                     if current_status == data::android_auto_entity::AutoEntityStatus::Uninitialized {
                         log::debug!("UNINITIALIZED");
                     } else {

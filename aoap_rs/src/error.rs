@@ -1,4 +1,5 @@
 use thiserror::Error;
+use crate::ProtocolVersion;
 
 #[derive(Error, Debug)]
 pub enum AccessoryError {
@@ -6,6 +7,6 @@ pub enum AccessoryError {
     RusbError(#[from] rusb::Error),
     #[error("invalid length (size: {0})")]
     InvalidLength(usize),
-    #[error("unsupported accessory protocol (size: {0})")]
-    UnsupportedProtocol(u16),
+    #[error("unsupported accessory protocol version: {0:?}")]
+    UnsupportedProtocol(ProtocolVersion),
 }

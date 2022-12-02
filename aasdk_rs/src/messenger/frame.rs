@@ -75,14 +75,14 @@ impl FrameHeader {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Message {
+pub struct Frame {
     pub frame_header: FrameHeader,
     pub channel_id: ChannelID,
     //pub payload: dyn Payload,
     pub payload: Vec<u8>,
 }
 
-impl Message {
+impl Frame {
     pub fn to_byte_vector(self) -> Vec<u8> {
         let mut byte_vector = vec![self.channel_id as u8];
         let payload_length = self.payload.len();

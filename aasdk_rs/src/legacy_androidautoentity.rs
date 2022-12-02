@@ -4,13 +4,13 @@ use crate::channels;
 use crate::cryptor;
 use crate::cryptor::Cryptor;
 use crate::data::android_auto_entity::Version;
-use crate::messenger::message::{ChannelID, EncryptionType, Message};
+use crate::messenger::frame::{ChannelID, EncryptionType, Frame};
 use crate::messenger::legacy_messenger::LegacyMessenger;
 use crate::services::audio_input_service::AudioInputService;
 use crate::services::bluetooth_service::BluetoothService;
 use crate::services::input_service::InputService;
 use crate::services::media_audio_service::MediaAudioService;
-use crate::services::sensor_service::{SensorService, SensorServiceConfig};
+use crate::services::sensor_service::SensorService;
 use crate::services::service::{ServiceList, ServiceStatus};
 use crate::services::speech_audio_service::SpeechAudioService;
 use crate::services::system_audio_service::SystemAudioServiceData;
@@ -130,9 +130,9 @@ impl LegacyAndroidAutoEntity {
         let speech_audio_service = SpeechAudioService {};
         let system_audio_service = SystemAudioServiceData {};
         let sensor_service = SensorService {
-            service_status: ServiceStatus::Uninitialized,
+            /*service_status: ServiceStatus::Uninitialized,
             config: SensorServiceConfig { location_sensor_present: false },
-            night_sensor_value: crate::services::sensor_service::NightStatus::Night
+            night_sensor_value: crate::services::sensor_service::NightStatus::Night*/
         };
         let video_service = VideoService {};
         let bluetooth_service = BluetoothService {};
@@ -679,7 +679,7 @@ impl LegacyAndroidAutoEntity {
     }
 }
 
-fn create_correct_setup(message: Message) -> Message {
+fn create_correct_setup(message: Frame) -> Frame {
     match message.channel_id {
         ChannelID::Control => {unimplemented!()}
         ChannelID::Input => {channels::input_service_channel::create_binding_response_message(message)}

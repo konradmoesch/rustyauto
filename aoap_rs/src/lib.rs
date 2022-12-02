@@ -7,6 +7,25 @@ use crate::error::AccessoryError;
 mod constants;
 pub mod error;
 
+//TODO: stop iterating devices when successful
+//TODO: better error handling
+
+#[derive(Debug)]
+#[allow(dead_code)]
+pub struct ProtocolVersion {
+    major: u8,
+    minor: u8,
+}
+
+impl From<[u8; 2]> for ProtocolVersion {
+    fn from(buffer: [u8; 2]) -> Self {
+        Self {
+            major: buffer[0],
+            minor: buffer[1],
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 enum DeviceType {
     Unknown,
@@ -25,16 +44,26 @@ pub struct AOAConfig {
 }
 
 ///Get the supported AOA protocol version
-fn get_protocol_version(device_handle: &DeviceHandle<GlobalContext>, data: &mut [u8], timeout: Duration) -> rusb::Result<usize> {
+fn get_protocol_version(device_handle: &DeviceHandle<GlobalContext>, timeout: Duration) -> Result<ProtocolVersion, AccessoryError> {
     let request_type = request_type(Direction::In, RequestType::Vendor, Recipient::Device);
-    device_handle.read_control(request_type, constants::REQUEST_TYPE_GET_PROTOCOL, 0, 0, data, timeout)
+    let mut data_buffer = [0u8; 2];
+    match device_handle.read_control(request_type, constants::REQUEST_TYPE_GET_PROTOCOL, 0, 0, &mut data_buffer, timeout) {
+        Ok(_) => {
+            let version = ProtocolVersion::from(data_buffer);
+            Ok(version)
+        }
+        Err(rusb_error) => {
+            log::error!("An error occurred during the protocol version request {}", rusb_error);
+            Err(AccessoryError::RusbError(rusb_error))
+        }
+    }
 }
 
 ///Helper for sending a String using the control transfer
 fn send_string(device_handle: &DeviceHandle<GlobalContext>, index: u16, str: &String, timeout: Duration) -> Result<(), AccessoryError> {
     let buf = str.as_bytes();
     let size = device_handle.write_control(
-        request_type(Direction::Out, RequestType::Vendor, Recipient::Device),
+        rusb::request_type(Direction::Out, RequestType::Vendor, Recipient::Device),
         constants::REQUEST_TYPE_SEND_STRING,
         0,
         index,
@@ -49,7 +78,7 @@ fn send_string(device_handle: &DeviceHandle<GlobalContext>, index: u16, str: &St
 }
 
 ///Send the AOA headers given by aoa_config
-fn send_headers(device_handle: &rusb::DeviceHandle<GlobalContext>, aoa_config: &AOAConfig, timeout: Duration) -> Result<(), AccessoryError> {
+fn send_headers(device_handle: &DeviceHandle<GlobalContext>, aoa_config: &AOAConfig, timeout: Duration) -> Result<(), AccessoryError> {
     log::debug!("Sending AOA headers");
 
     send_string(device_handle, constants::ACCESSORY_STRING_MANUFACTURER, &aoa_config.manufacturer, timeout)?;
@@ -67,71 +96,77 @@ fn send_headers(device_handle: &rusb::DeviceHandle<GlobalContext>, aoa_config: &
 fn try_start_aoa_mode(device: rusb::Device<GlobalContext>, aoa_config: &AOAConfig) {
     let timeout = Duration::from_secs(constants::USB_TIMEOUT_SECONDS as u64);
     let handle = device.open().unwrap();
+    let device_desc = device.device_descriptor().unwrap();
 
-    log::info!("Trying to start AOA on device {:?}", device);
-
-    let mut data = vec![0; 2];
-    let protocol_version = match get_protocol_version(&handle, &mut data, timeout) {
-        Ok(_num_bytes) => &data,
-        Err(e) => {
-            log::error!("Fetching protocol version failed: {}", e);
-            &data
-        }
-    };
-    log::info!("protocol_version: {:?}", protocol_version);
-
-    if data[0] == 2 || data[0] == 1 {
-        match send_headers(&handle, aoa_config, timeout) {
-            Ok(_) => log::info!("successfully sent headers"),
-            Err(e) => log::error!("Error sending headers: {}", e),
-        };
-    } else {
-        log::error!("Unknown protocol version");
-    }
-    send_start_request(device);
-}
-
-pub fn try_starting_aoa_mode(aoa_config: AOAConfig) {
-    for device in rusb::devices().unwrap().iter() {
-        let device_desc = device.device_descriptor().unwrap();
-        let timeout = Duration::from_secs(constants::USB_TIMEOUT_SECONDS as u64);
-
-        let handle = device.open().unwrap();
-        /*let language = handle.read_languages(timeout).unwrap()[0];
-        log::debug!("Trying new device: Bus {:03} Device {:03} ID {:04x}:{:04x} ({})",
+    log::info!("Trying new device: Bus {:03} Device {:03} ID {:04x}:{:04x}",
                  device.bus_number(),
                  device.address(),
                  device_desc.vendor_id(),
-                 device_desc.product_id(),
-                 handle.read_manufacturer_string(language, &device_desc, timeout)
-                     .expect(format!("unable to read manufacturer string in language {:?} for dev descriptor {:?}",
-                                     language, device_desc).as_str()));*/
-        //todo: make filter optional & configurable
-        if device_desc.vendor_id() == 0x22d9 || device_desc.vendor_id() == 0x18d1 {
-            try_start_aoa_mode(device, &aoa_config);
+                 device_desc.product_id());
+
+    match get_protocol_version(&handle, timeout) {
+        Ok(version) => {
+            log::info!("protocol_version: {:?}", version);
+            if version.major == 2 || version.major == 1 {
+                match send_headers(&handle, aoa_config, timeout) {
+                    Ok(_) => {
+                        log::info!("successfully sent headers");
+                        send_start_request(device);
+                    }
+                    Err(e) => {
+                        log::error!("Error sending headers: {:?}; skipping this device", e);
+                        return;
+                    }
+                };
+            } else {
+                log::error!("Unknown protocol version; skipping this device");
+                //AccessoryError(UnsupportedProtocol(protocol_version))
+                return;
+            }
+        }
+        Err(e) => {
+            log::error!("Fetching protocol version failed: {:?}", e);
+            return;
+        }
+    };
+}
+
+pub fn try_starting_aoa_mode(aoa_config: AOAConfig, vendor_ids_to_try: Option<Vec<u16>>) {
+    for device in rusb::devices().unwrap().iter() {
+        let device_desc = device.device_descriptor().unwrap();
+        match vendor_ids_to_try {
+            Some(ref filter_list) => {
+                if filter_list.contains(&device_desc.vendor_id()) {
+                    try_start_aoa_mode(device, &aoa_config);
+                }
+            }
+            None => {
+                log::debug!("No filter specified, trying all devices");
+                try_start_aoa_mode(device, &aoa_config);
+            }
         }
     }
 }
 
-
-pub fn search_for_device() -> Option<Device<GlobalContext>> {
-    log::info!("Searching for USB devices now");
+///Search for a Android-powered device in accessory mode
+pub fn search_for_device_in_accessory_mode() -> Option<Device<GlobalContext>> {
+    log::info!("Searching for a accessory mode USB device now");
     for device in rusb::devices().unwrap().iter() {
         let device_desc = device.device_descriptor().unwrap();
-        let timeout = Duration::from_secs(constants::USB_TIMEOUT_SECONDS as u64);
 
-        let device_type = check_usb_ids(&device_desc);
+        let device_type = get_device_type(&device_desc);
         return if device_type == DeviceType::AOADevice || device_type == DeviceType::AOADeviceWithADB {
             log::debug!("{:?} found at Bus {:03} Device {:03}", device_type, device.bus_number(), device.address());
             Some(device)
         } else {
             None
-        }
+        };
     }
     None
 }
 
-fn check_usb_ids(device_desc: &DeviceDescriptor) -> DeviceType {
+///Get device type by comparing usb ids
+fn get_device_type(device_desc: &DeviceDescriptor) -> DeviceType {
     if device_desc.vendor_id() == constants::GOOGLE_VID {
         match device_desc.product_id() {
             constants::AOA_PID => DeviceType::AOADevice,
@@ -148,7 +183,7 @@ fn send_start_request(device: Device<GlobalContext>) {
     let request_out_vendor_device = request_type(Direction::Out, RequestType::Vendor, Recipient::Device);
     let timeout = Duration::from_secs(constants::USB_TIMEOUT_SECONDS as u64);
 
-    log::info!("Start AOAP: {:?}", match (&device_handle).write_control(request_out_vendor_device, crate::constants::REQUEST_TYPE_START_AOA, 0, 0, &[], timeout) {
+    log::info!("sending aoa mode start request: {:?}", match (&device_handle).write_control(request_out_vendor_device, crate::constants::REQUEST_TYPE_START_AOA, 0, 0, &[], timeout) {
         Ok(result) => result,
         Err(e) => {
             log::error!("Error: {}", e);

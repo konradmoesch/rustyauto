@@ -10,13 +10,13 @@ use crate::{channels, messenger, protos};
 use crate::channels::control::control_service_channel::VersionResponseStatus::{Match, Mismatch};
 use crate::data::android_auto_entity::AndroidAutoEntityData;
 use crate::data::messenger::MessengerStatus;
-use crate::messenger::message::{ChannelID, EncryptionType, FrameHeader, FrameType, Message, MessageType};
+use crate::messenger::frame::{ChannelID, EncryptionType, FrameHeader, FrameType, Frame, MessageType};
 use crate::protos::ServiceDiscoveryRequestMessage::ServiceDiscoveryRequest;
 use crate::protos::ServiceDiscoveryResponseMessage::ServiceDiscoveryResponse;
 
 use super::message_ids::ControlMessageID;
 
-pub fn create_version_request_message(own_version: crate::data::android_auto_entity::Version) -> Message {
+pub fn create_version_request_message(own_version: crate::data::android_auto_entity::Version) -> Frame {
     log::info!("Creating version request message");
     let version_buffer = own_version.to_bytes();
     let frame_header = FrameHeader {
@@ -26,11 +26,11 @@ pub fn create_version_request_message(own_version: crate::data::android_auto_ent
     };
     let mut payload = (ControlMessageID::VersionRequest as u16).to_be_bytes().to_vec();
     payload.extend_from_slice(&version_buffer);
-    let message = messenger::message::Message { frame_header, channel_id: ChannelID::Control, payload };
+    let message = messenger::frame::Frame { frame_header, channel_id: ChannelID::Control, payload };
     message
 }
 
-pub fn create_handshake_message(handshake_buffer: &[u8]) -> Message {
+pub fn create_handshake_message(handshake_buffer: &[u8]) -> Frame {
     log::info!("Creating ssl handshake message");
     log::debug!("Handshake buffer: {:?}", handshake_buffer);
     let frame_header = FrameHeader {
@@ -40,11 +40,11 @@ pub fn create_handshake_message(handshake_buffer: &[u8]) -> Message {
     };
     let mut payload = (ControlMessageID::SSLHandshake as u16).to_be_bytes().to_vec();
     payload.extend_from_slice(handshake_buffer);
-    let message = messenger::message::Message { frame_header, channel_id: ChannelID::Control, payload };
+    let message = messenger::frame::Frame { frame_header, channel_id: ChannelID::Control, payload };
     message
 }
 
-pub fn create_auth_complete_message() -> Message {
+pub fn create_auth_complete_message() -> Frame {
     log::info!("Creating auth complete message");
     let frame_header = FrameHeader {
         encryption_type: EncryptionType::Plain,
@@ -54,11 +54,11 @@ pub fn create_auth_complete_message() -> Message {
     let mut payload = (ControlMessageID::AuthComplete as u16).to_be_bytes().to_vec();
     payload.push(0x8);
     payload.push(0);
-    let message = messenger::message::Message { frame_header, channel_id: ChannelID::Control, payload };
+    let message = messenger::frame::Frame { frame_header, channel_id: ChannelID::Control, payload };
     message
 }
 
-pub fn create_service_discovery_response_message(service_discovery_response_message: crate::protos::ServiceDiscoveryResponseMessage::ServiceDiscoveryResponse) -> Message {
+pub fn create_service_discovery_response_message(service_discovery_response_message: crate::protos::ServiceDiscoveryResponseMessage::ServiceDiscoveryResponse) -> Frame {
     log::info!("Creating service discovery response message");
     let frame_header = FrameHeader {
         encryption_type: EncryptionType::Encrypted,
@@ -71,11 +71,11 @@ pub fn create_service_discovery_response_message(service_discovery_response_mess
     println!("{:x?}", bytes);
     payload.extend(bytes);
     println!("{:x?}", payload);
-    let message = messenger::message::Message { frame_header, channel_id: ChannelID::Control, payload };
+    let message = messenger::frame::Frame { frame_header, channel_id: ChannelID::Control, payload };
     message
 }
 
-pub fn create_audio_focus_response_message() -> Message {
+pub fn create_audio_focus_response_message() -> Frame {
     log::info!("Creating audio focus response message");
     let frame_header = FrameHeader {
         encryption_type: EncryptionType::Encrypted,
@@ -90,7 +90,7 @@ pub fn create_audio_focus_response_message() -> Message {
     //println!("{:x?}", bytes);
     payload.extend(bytes);
     //println!("{:x?}", payload);
-    let message = messenger::message::Message { frame_header, channel_id: ChannelID::Control, payload };
+    let message = messenger::frame::Frame { frame_header, channel_id: ChannelID::Control, payload };
     message
 }
 
@@ -166,7 +166,7 @@ fn handle_audio_focus_request(payload: Vec<u8>) {
     dbg!(message);
 }
 
-pub fn handle_message(message: &Message, data: &mut AndroidAutoEntityData) {
+pub fn handle_message(message: &Frame, data: &mut AndroidAutoEntityData) {
     log::info!("Received message in control service channel: {:?}", message);
     let payload = message.clone().payload;
     let message_id_word = u16::from_be_bytes([payload.as_slice()[0], payload.as_slice()[1]]);

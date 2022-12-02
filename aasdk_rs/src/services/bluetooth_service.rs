@@ -1,3 +1,4 @@
+use crate::data::android_auto_entity::AndroidAutoEntityData;
 use crate::services::service::Service;
 use crate::protos::ServiceDiscoveryResponseMessage::ServiceDiscoveryResponse;
 
@@ -29,7 +30,7 @@ impl Service for BluetoothService {
             let bluetooth_address = ""; //bluetoothDevice_->getLocalAddress()
 
             let mut channel_descriptor = crate::protos::ChannelDescriptorData::ChannelDescriptor::default();
-            channel_descriptor.set_channel_id(crate::messenger::message::ChannelID::Bluetooth as u32);
+            channel_descriptor.set_channel_id(crate::messenger::frame::ChannelID::Bluetooth as u32);
 
             let mut bluetooth_channel = crate::protos::BluetoothChannelData::BluetoothChannel::default();
             bluetooth_channel.set_adapter_address(bluetooth_address.to_string());
@@ -49,5 +50,9 @@ impl Service for BluetoothService {
 
             response.channels.push(channel_descriptor);
         }
+    }
+
+    fn run(&mut self, data: &mut AndroidAutoEntityData) {
+        todo!()
     }
 }

@@ -7,7 +7,7 @@ pub mod channels;
 pub mod legacy_androidautoentity;
 pub mod cryptor;
 mod utils;
-mod services;
+pub mod services;
 pub mod data;
 
 /*pub mod messages {

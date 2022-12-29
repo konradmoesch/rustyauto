@@ -1,6 +1,3 @@
-use crate::channels;
-use crate::data::android_auto_entity::AndroidAutoEntityData;
-
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum EncryptionType {
     Plain = 0, //0
@@ -106,25 +103,6 @@ impl Frame {
         };
         //log::debug!("Message: {:?}", to_return);
         to_return
-    }
-
-    pub fn handle(&self, data: &mut AndroidAutoEntityData) {
-        /*if self.frame_header.encryption_type == EncryptionType::Encrypted {
-            log::info!("Encrypted message, decrypting now");
-        } else {*/
-        log::debug!("Channel ID: {:?}", self.channel_id);
-        match self.channel_id {
-            ChannelID::Control => { channels::control::control_service_channel::handle_message(self, data) }
-            ChannelID::AVInput => { channels::av_input_service_channel::handle_message(self, data) }
-            ChannelID::MediaAudio => { channels::media_audio_service_channel::handle_message(self, data) }
-            ChannelID::SpeechAudio => { channels::speech_audio_service_channel::handle_message(self, data) }
-            ChannelID::SystemAudio => { channels::system_audio_service_channel::handle_message(self, data) }
-            ChannelID::Sensor => { channels::sensor_service_channel::handle_message(self, data) }
-            ChannelID::Video => { channels::video_service_channel::handle_message(self, data) }
-            ChannelID::Input => { channels::input_service_channel::handle_message(self, data) }
-            _ => { todo!() }
-        }
-        //}
     }
 }
 

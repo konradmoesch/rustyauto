@@ -7,3 +7,4 @@ pub mod speech_audio_service_data;
 pub mod system_audio_service_data;
 pub mod video_service_data;
 pub mod service_data;
+pub mod control_service_data;

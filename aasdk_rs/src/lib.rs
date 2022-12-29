@@ -4,7 +4,6 @@ mod constants;
 pub mod usbdriver;
 pub mod messenger;
 pub mod channels;
-pub mod legacy_androidautoentity;
 pub mod cryptor;
 mod utils;
 pub mod services;

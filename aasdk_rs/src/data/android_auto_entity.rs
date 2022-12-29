@@ -2,6 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::data::messenger::MessengerStatus;
 use crate::data::services::audio_input_service_data::AudioInputServiceData;
+use crate::data::services::control_service_data::ControlServiceData;
 use crate::data::services::input_service_data::InputServiceData;
 use crate::data::services::media_audio_service_data::MediaAudioServiceData;
 use crate::data::services::sensor_service_data::SensorServiceData;
@@ -52,6 +53,7 @@ pub struct AndroidAutoEntityData {
     pub messenger_status: Arc<RwLock<MessengerStatus>>,
     pub version: Arc<RwLock<VersionStatus>>,
     config: Arc<AndroidAutoConfig>,
+    pub control_service_data: Arc<RwLock<ControlServiceData>>,
     pub audio_input_service_data: Arc<RwLock<AudioInputServiceData>>,
     pub media_audio_service_data: Arc<RwLock<MediaAudioServiceData>>,
     pub speech_audio_service_data: Arc<RwLock<SpeechAudioServiceData>>,
@@ -70,6 +72,7 @@ impl Clone for AndroidAutoEntityData {
             messenger_status: self.messenger_status.clone(),
             version: self.version.clone(),
             config: self.config.clone(),
+            control_service_data: self.control_service_data.clone(),
             audio_input_service_data: self.audio_input_service_data.clone(),
             media_audio_service_data: self.media_audio_service_data.clone(),
             speech_audio_service_data: self.speech_audio_service_data.clone(),
@@ -92,6 +95,7 @@ impl AndroidAutoEntityData {
                 version_match: false,
             })),
             config: Arc::new(config),
+            control_service_data: Arc::new(RwLock::new(ControlServiceData::new())),
             audio_input_service_data: Arc::new(RwLock::new(AudioInputServiceData::new())),
             media_audio_service_data: Arc::new(RwLock::new(MediaAudioServiceData::new())),
             speech_audio_service_data: Arc::new(RwLock::new(SpeechAudioServiceData::new())),

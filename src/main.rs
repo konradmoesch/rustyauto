@@ -3,7 +3,7 @@ use std::time::Duration;
 use aasdk_rs::cryptor::Cryptor;
 use aasdk_rs::data;
 use aasdk_rs::data::android_auto_entity::AndroidAutoConfig;
-use aasdk_rs::messenger::messenger::Messenger;
+use aasdk_rs::messenger::messenger::{Messenger, ReceivalQueue};
 use aasdk_rs::services::sensor_service::SensorService;
 use aasdk_rs::services::service::Service;
 
@@ -37,9 +37,9 @@ fn main() {
         uri: "https://github.com/konradmoesch".to_string(),
         serial_number: "001".to_string(),
     };
-    //let vendor_ids_to_try: Vec<u16> = vec![0x22d9, 0x18d1];
-    //aoap_rs::try_starting_aoa_mode(aoa_config, Some(vendor_ids_to_try));
-    aoap_rs::try_starting_aoa_mode(aoa_config, None);
+    let vendor_ids_to_try: Vec<u16> = vec![0x22d9, 0x18d1];
+    aoap_rs::try_starting_aoa_mode(aoa_config, Some(vendor_ids_to_try));
+    //aoap_rs::try_starting_aoa_mode(aoa_config, None);
     std::thread::sleep(Duration::from_secs(5));
     match aoap_rs::search_for_device_in_accessory_mode() {
         Some(device) => {
@@ -64,7 +64,7 @@ fn main() {
 
             let mut messenger_data = android_auto_entity_data.clone();
 
-            let mut messenger = Messenger { cryptor: Cryptor::init(), usb_driver };
+            let mut messenger = Messenger { cryptor: Cryptor::init(), usb_driver, receival_queue: ReceivalQueue::new() };
 
             let messenger_thread = std::thread::spawn(move || {
                 loop {

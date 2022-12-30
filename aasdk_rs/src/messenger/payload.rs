@@ -9,7 +9,7 @@ struct PlainPayload {
 
 impl PlainPayload {
     fn as_vec(&self) -> Vec<u8> {
-        let mut bytes_to_return = self.bytes.to_vec();
+        let bytes_to_return = self.bytes.to_vec();
         return bytes_to_return;
     }
     fn get_message_id(&self) -> u16 {

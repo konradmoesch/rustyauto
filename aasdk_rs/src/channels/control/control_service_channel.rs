@@ -1,4 +1,5 @@
 use std::io::Cursor;
+use std::sync::mpsc::Sender;
 
 use byteorder::{BigEndian, ReadBytesExt};
 use bytes::BufMut;
@@ -11,6 +12,7 @@ use crate::data::android_auto_entity::AndroidAutoEntityData;
 use crate::data::messenger::MessengerStatus;
 use crate::data::services::control_service_data::{AudioFocusState, ServiceDiscoveryState};
 use crate::messenger::frame::{ChannelID, EncryptionType, FrameHeader, FrameType, Frame, MessageType};
+use crate::messenger::messenger::ReceivalRequest;
 use crate::protos::ServiceDiscoveryRequestMessage::ServiceDiscoveryRequest;
 use crate::protos::ServiceDiscoveryResponseMessage::ServiceDiscoveryResponse;
 
@@ -168,7 +170,7 @@ pub fn temp_fill_service_features(sdr: &mut crate::protos::ServiceDiscoveryRespo
     //todo WifiService
 }
 
-pub fn run(data: &mut AndroidAutoEntityData) {
+pub fn run(data: &mut AndroidAutoEntityData, receival_queue_tx: Sender<ReceivalRequest>) {
     let current_data = data.control_service_data.read().unwrap().clone();
     if current_data.service_discovery_state == ServiceDiscoveryState::Requested {
 
@@ -189,10 +191,12 @@ pub fn run(data: &mut AndroidAutoEntityData) {
 
         create_service_discovery_response_message(service_discovery_response);
         data.control_service_data.write().unwrap().service_discovery_state = ServiceDiscoveryState::Idle;
+        receival_queue_tx.send(ReceivalRequest).unwrap();
     }
     if current_data.audio_focus_state == AudioFocusState::Requested {
         create_audio_focus_response_message();
         data.control_service_data.write().unwrap().audio_focus_state = AudioFocusState::Gained;
+        receival_queue_tx.send(ReceivalRequest).unwrap();
     }
 }
 

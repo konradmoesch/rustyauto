@@ -1,8 +1,9 @@
 pub mod control;
-pub mod av_input_service_channel;
-pub mod media_audio_service_channel;
-pub mod speech_audio_service_channel;
-pub mod system_audio_service_channel;
-pub mod sensor_service_channel;
-pub mod video_service_channel;
-pub mod input_service_channel;
+pub mod av_input;
+pub mod media_audio;
+pub mod speech_audio;
+pub mod system_audio;
+pub mod sensor;
+pub mod video;
+pub mod input;
+mod general_audio;

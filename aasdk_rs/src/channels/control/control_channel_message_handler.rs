@@ -77,7 +77,7 @@ fn handle_service_discovery_request(payload: Vec<u8>, data: &mut AndroidAutoEnti
 
 fn handle_audio_focus_request(payload: Vec<u8>) {
     let request = crate::protos::AudioFocusRequestMessage::AudioFocusRequest::parse_from_bytes(payload.as_slice()).unwrap();
-    log::debug!("Received service discovery request: {:?}", payload);
+    log::debug!("Received audio focus request: {:?}", payload);
     dbg!(request.clone());
     log::info!("Requested audio focus, type: {:?}", request.audio_focus_type());
 

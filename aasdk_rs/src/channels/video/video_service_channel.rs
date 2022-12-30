@@ -1,58 +1,49 @@
-use crate::messenger;
+use std::sync::mpsc::Sender;
+use crate::{channels, messenger};
 use crate::messenger::frame::{ChannelID, EncryptionType, FrameHeader, FrameType, Frame, MessageType};
 use protobuf::Message as protomsg;
-use crate::channels::av_input_service_channel::AVMessageID;
+use crate::channels::av_input::av_input_service_channel::AVMessageID;
 use crate::channels::control::message_ids::ControlMessageID;
 use crate::cryptor::Cryptor;
 use crate::data::android_auto_entity::AndroidAutoEntityData;
+use crate::data::services::general::{ChannelStatus, SetupStatus};
+use crate::messenger::messenger::{Messenger, ReceivalRequest};
 use crate::usbdriver::UsbDriver;
 
-fn handle_channel_open_request(message: &Frame) {
-    log::info!("Received channel open request for video_channel");
-}
-
-pub fn handle_message(message: &Frame, data: &mut AndroidAutoEntityData) {
-    log::info!("Received message in video service channel: {:?}", message);
-    let payload = message.clone().payload;
-    let message_id_word = u16::from_be_bytes([payload.as_slice()[0], payload.as_slice()[1]]);
-    //TODO: use word correctly
-    match message.frame_header.message_type {
-        MessageType::Specific => {
-            let message_id = AVMessageID::try_from(message_id_word);
-            match message_id {
-                Ok(AVMessageID::SetupRequest) => {
-                    log::info!("Received setup request for video service");
-                }
-                Ok(AVMessageID::StartIndication) => {
-                    log::info!("Received start indication for video service");
-                }
-                Ok(AVMessageID::AvMediaIndication) => {
-                    log::info!("Received AV Media Indication");
-                    log::debug!("Indication content: {:?}", payload.as_slice());
-                }
-                Ok(AVMessageID::AvMediaWithTimestampIndication) => {
-                    log::info!("Received AV Media Indication with timestamp");
-                    messenger::timestamp::get_timestamp_from_bytes(&payload.as_slice()[2..]);
-                    log::debug!("Indication content: {:?}", payload.as_slice());
-                },
-                _ => {
-                    log::error!("Error: UnknownMessageID: {:?} ({:?})", message_id, message_id_word);
-                    unimplemented!()
-                }
-            }
-        }
-        MessageType::Control => {
-            match crate::channels::control::message_ids::ControlMessageID::from(message_id_word as u8) {
-                ControlMessageID::ChannelOpenRequest => {
-                    handle_channel_open_request(message);
-                }
-                _ => { unimplemented!() }
+pub fn run(data: &mut AndroidAutoEntityData, receival_queue_tx: Sender<ReceivalRequest>, messenger: &mut Messenger) {
+    if data.video_service_data.read().unwrap().channel_status == ChannelStatus::OpenRequest {
+        let mut  message = create_channel_open_response_message();
+        messenger.cryptor.encrypt_message(&mut message);
+        messenger.send_message_via_usb(message);
+        receival_queue_tx.send(ReceivalRequest).unwrap();
+        data.video_service_data.write().unwrap().channel_status = ChannelStatus::Open;
+    }
+    else if data.video_service_data.read().unwrap().setup_status == SetupStatus::Requested {
+        log::info!("Sending video focus indication");
+        let mut video_focus_message = create_video_focus_indication();
+        messenger.cryptor.encrypt_message(&mut video_focus_message);
+        messenger.send_message_via_usb(video_focus_message);
+        let mut setup_response_message = channels::general_audio::create_av_channel_setup_response(ChannelID::Video);
+        messenger.cryptor.encrypt_message(&mut setup_response_message);
+        messenger.send_message_via_usb(setup_response_message);
+        receival_queue_tx.send(ReceivalRequest).unwrap();
+        data.video_service_data.write().unwrap().setup_status = SetupStatus::Finished;
+    }
+    else if data.video_service_data.read().unwrap().setup_status == SetupStatus::Finished {
+        let last_indication = data.video_service_data.read().unwrap().received_indication.clone();
+        match last_indication {
+            Some(indication_type) => {
+                let mut indication_ack_message = create_av_media_ack_indication();
+                messenger.cryptor.encrypt_message(&mut indication_ack_message);
+                messenger.send_message_via_usb(indication_ack_message);
+                receival_queue_tx.send(ReceivalRequest).unwrap();
+                data.video_service_data.write().unwrap().received_indication = None;
+            },
+            None => {
+                log::debug!("No indication received");
             }
         }
     }
-    use protobuf::Enum as protoenum;
-    //let message_id = crate::protos::MediaAudioChannelMessageIdsEnum::avchannel_message::Enum::from_i32(message_id_word as i32);
-    log::info!("Message ID (raw): {:?}", message_id_word);
 }
 
 pub fn create_channel_open_response_message() -> Frame {

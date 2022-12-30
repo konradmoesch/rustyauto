@@ -78,12 +78,12 @@ fn main() {
             loop {
                 {
                     let current_status = (*android_auto_entity_data.status.read().unwrap()).clone();
-                    log::debug!("{:?}", current_status);
+                    //log::debug!("{:?}", current_status);
                     let mut sensor_service = aasdk_rs::services::sensor_service::SensorService{};
-                    sensor_service.run(&mut android_auto_entity_data);
                     if current_status == data::android_auto_entity::AutoEntityStatus::Uninitialized {
-                        log::debug!("UNINITIALIZED");
+                        //log::debug!("UNINITIALIZED");
                     } else {
+                        sensor_service.run(&mut android_auto_entity_data);
                         //run services
                     }
                 }

@@ -1,16 +1,17 @@
-use crate::messenger;
-use crate::messenger::frame::{ChannelID, EncryptionType, FrameHeader, FrameType, Frame, MessageType};
-use protobuf::Message as protomsg;
-use crate::channels::av_input_service_channel::AVMessageID;
+use crate::channels::av_input::av_input_service_channel::AVMessageID;
 use crate::channels::control::message_ids::ControlMessageID;
 use crate::data::android_auto_entity::AndroidAutoEntityData;
+use crate::data::services::general::{ChannelStatus, SetupStatus};
+use crate::messenger::frame::{Frame, MessageType};
 
-fn handle_channel_open_request(message: &Frame) {
+fn handle_channel_open_request(message: &Frame, data: &mut AndroidAutoEntityData) {
     log::info!("Received channel open request for speech_audio_channel");
+    data.speech_audio_service_data.write().unwrap().channel_status = ChannelStatus::OpenRequest;
 }
 
-fn handle_av_channel_setup_request(message: &Frame) {
+fn handle_av_channel_setup_request(message: &Frame, data: &mut AndroidAutoEntityData) {
     log::info!("Received setup request for speech_audio_channel");
+    data.speech_audio_service_data.write().unwrap().setup_status = SetupStatus::Requested;
 }
 
 pub fn handle_message(message: &Frame, data: &mut AndroidAutoEntityData) {
@@ -24,7 +25,7 @@ pub fn handle_message(message: &Frame, data: &mut AndroidAutoEntityData) {
             match message_id {
                 Ok(AVMessageID::SetupRequest) => {
                     log::debug!("Setup request");
-                    handle_av_channel_setup_request(message);
+                    handle_av_channel_setup_request(message, data);
                 }
                 _ => {
                     log::error!("Error: UnknownMessageID: {:?}", message_id);
@@ -35,31 +36,13 @@ pub fn handle_message(message: &Frame, data: &mut AndroidAutoEntityData) {
         MessageType::Control => {
             match crate::channels::control::message_ids::ControlMessageID::from(message_id_word as u8) {
                 ControlMessageID::ChannelOpenRequest => {
-                    handle_channel_open_request(message);
+                    handle_channel_open_request(message, data);
                 }
-                _ => {unimplemented!()}
+                _ => { unimplemented!() }
             }
         }
     }
     use protobuf::Enum as protoenum;
     //let message_id = crate::protos::MediaAudioChannelMessageIdsEnum::avchannel_message::Enum::from_i32(message_id_word as i32);
     log::info!("Message ID (raw): {:?}", message_id_word);
-}
-
-pub fn create_channel_open_response_message() -> Frame {
-    log::info!("Creating channel open response message");
-    let frame_header = FrameHeader {
-        encryption_type: EncryptionType::Encrypted,
-        message_type: MessageType::Control,
-        frame_type: FrameType::Bulk,
-    };
-    let mut channel_open_response = crate::protos::ChannelOpenResponseMessage::ChannelOpenResponse::new();
-    channel_open_response.set_status(crate::protos::StatusEnum::status::Enum::OK);
-    let mut payload = (crate::channels::control::message_ids::ControlMessageID::ChannelOpenResponse as u16).to_be_bytes().to_vec();
-    let mut bytes = channel_open_response.write_to_bytes().unwrap();
-    //println!("{:x?}", bytes);
-    payload.extend(bytes);
-    //println!("{:x?}", payload);
-    let message = messenger::frame::Frame { frame_header, channel_id: ChannelID::SpeechAudio, payload };
-    message
 }

@@ -4,10 +4,12 @@ use crate::channels;
 use crate::cryptor::Cryptor;
 use crate::data::android_auto_entity::AndroidAutoEntityData;
 use crate::data::messenger::{HandshakeStatus, MessengerStatus};
+use crate::data::services::control_service_data::{AudioFocusState, ServiceDiscoveryState};
 use crate::data::services::service_data::{ServiceData, ServiceType};
 use crate::messenger::frame::Frame;
 use crate::usbdriver::UsbDriver;
 
+#[derive(Debug)]
 pub struct ReceivalRequest;
 
 pub struct ReceivalQueue {
@@ -33,23 +35,23 @@ pub struct Messenger {
 
 impl Messenger {
     fn receive_messages(&mut self, data: &mut AndroidAutoEntityData) {
-        if let Ok(ReceivalRequest) = self.receival_queue.rx.recv() {
+        while let Ok(ReceivalRequest) = self.receival_queue.rx.try_recv() {
             log::info!("Have to receive a message, doing this now");
-            let received_message = self.receive_message();
+            let received_message = self.receive_and_decrypt_message();
             crate::messenger::message_handler::handle_message(&received_message, data);
-        } else {
-            log::debug!("Error in receival queue");
         }
+        log::debug!("Finished receiving messages");
     }
     pub fn run(&mut self, data: &mut AndroidAutoEntityData) {
         let current_messenger_status = (*data.messenger_status.read().unwrap()).clone();
+        log::debug!("Messenger running now; current status: {:?}", current_messenger_status);
         self.receive_messages(data);
         match current_messenger_status {
             MessengerStatus::Uninitialized => {
                 log::info!("Doing version check now");
                 let version_request_message = channels::control::control_service_channel::create_version_request_message(data.version.read().unwrap().own_version);
                 self.send_message_via_usb(version_request_message);
-                let received_message = self.receive_message();
+                let received_message = self.receive_and_decrypt_message();
                 crate::messenger::message_handler::handle_message(&received_message, data);
             }
             MessengerStatus::VersionRequestDone => {
@@ -65,7 +67,7 @@ impl Messenger {
                             let handshake_message = channels::control::control_service_channel::create_handshake_message(self.cryptor.read_handshake_buffer().as_slice());
                             log::debug!("{:?}", handshake_message);
                             self.send_message_via_usb(handshake_message);
-                            let received_message = self.receive_message();
+                            let received_message = self.receive_and_decrypt_message();
                             crate::messenger::message_handler::handle_message(&received_message, data);
                             let received_handshake_message = received_message.payload[2..].to_vec();
                             log::info!("{:?}", received_handshake_message);
@@ -87,7 +89,7 @@ impl Messenger {
                 log::debug!("auth complete message: {:?}", auth_complete_message);
                 self.send_message_via_usb(auth_complete_message);
 
-                let mut received_message = self.receive_message();
+                let mut received_message = self.receive_and_decrypt_message();
                 crate::messenger::message_handler::handle_message(&received_message, data);
 
                 let mut service_discovery_response = crate::protos::ServiceDiscoveryResponseMessage::ServiceDiscoveryResponse::new();
@@ -109,6 +111,9 @@ impl Messenger {
                 self.cryptor.encrypt_message(&mut service_discovery_response_message);
                 self.send_message_via_usb(service_discovery_response_message);
 
+                data.control_service_data.write().unwrap().service_discovery_state = ServiceDiscoveryState::Idle;
+                log::info!("Sent SD-response");
+
                 let mut received_message = self.receive_message_via_usb();
                 self.cryptor.decrypt_message(&mut received_message);
                 crate::messenger::message_handler::handle_message(&received_message, data);
@@ -117,11 +122,23 @@ impl Messenger {
                 self.cryptor.encrypt_message(&mut audio_focus_response_message);
                 self.send_message_via_usb(audio_focus_response_message);
 
+                data.control_service_data.write().unwrap().audio_focus_state = AudioFocusState::Lost;
+                log::info!("Sent audio focus response");
+
+                self.receival_queue.tx.send(ReceivalRequest).unwrap();
+
                 *data.messenger_status.write().unwrap() = MessengerStatus::InitializationDone;
             }
             MessengerStatus::InitializationDone => {
-
                 //run channels
+                channels::control::control_service_channel::run(data, self.receival_queue.tx.clone());
+                channels::av_input::av_input_service_channel::run(data, self.receival_queue.tx.clone(), self);
+                channels::media_audio::media_audio_service_channel::run(data, self.receival_queue.tx.clone(), self);
+                channels::speech_audio::speech_audio_service_channel::run(data, self.receival_queue.tx.clone(), self);
+                channels::system_audio::system_audio_service_channel::run(data, self.receival_queue.tx.clone(), self);
+                channels::sensor::sensor_service_channel::run(data, self.receival_queue.tx.clone(), self);
+                channels::input::input_service_channel::run(data, self.receival_queue.tx.clone(), self);
+                channels::video::video_service_channel::run(data, self.receival_queue.tx.clone(), self);
             }
         }
     }
@@ -133,7 +150,7 @@ impl Messenger {
         let received_message = Frame::from_data_frame(in_buffer.as_slice());
         received_message
     }
-    pub fn receive_message(&mut self) -> Frame {
+    pub fn receive_and_decrypt_message(&mut self) -> Frame {
         let mut raw_message = self.receive_message_via_usb();
         self.cryptor.decrypt_message(&mut raw_message);
         raw_message

@@ -1,48 +1,33 @@
+use std::sync::mpsc::Sender;
 use protobuf::Message as protomsg;
 
 use crate::channels::control::message_ids::ControlMessageID;
 use crate::data::android_auto_entity::AndroidAutoEntityData;
+use crate::data::services::general::{ChannelStatus, SetupStatus};
 use crate::messenger;
-use crate::messenger::frame::{ChannelID, EncryptionType, FrameHeader, FrameType, Frame, MessageType};
+use crate::messenger::frame::{ChannelID, EncryptionType, Frame, FrameHeader, FrameType, MessageType};
+use crate::messenger::messenger::{Messenger, ReceivalRequest};
+use crate::protos::SensorTypeEnum;
+use crate::protos::SensorTypeEnum::SensorType;
 
-fn handle_channel_open_request(message: &Frame) {
-    log::info!("Received channel open request for sensor_channel");
-}
-
-fn handle_sensor_start_request(message: &Frame) {
-    log::info!("Received sensor start request for sensor_channel");
-}
-
-pub fn handle_message(message: &Frame, data: &mut AndroidAutoEntityData) {
-    log::info!("Received message in sensor service channel: {:?}", message);
-    let payload = message.clone().payload;
-    let message_id_word = u16::from_be_bytes([payload.as_slice()[0], payload.as_slice()[1]]);
-    //TODO: use word correctly
-    match message.frame_header.message_type {
-        MessageType::Specific => {
-            let message_id = SensorMessageID::try_from(message_id_word);
-            match message_id {
-                Ok(SensorMessageID::SensorStartRequest) => {
-                    handle_sensor_start_request(message);
-                }
-                _ => {
-                    log::error!("Error: UnknownMessageID: {:?}", message_id);
-                    unimplemented!()
-                }
-            }
-        }
-        MessageType::Control => {
-            match crate::channels::control::message_ids::ControlMessageID::from(message_id_word as u8) {
-                ControlMessageID::ChannelOpenRequest => {
-                    handle_channel_open_request(message);
-                }
-                _ => { unimplemented!() }
-            }
-        }
+pub fn run(data: &mut AndroidAutoEntityData, receival_queue_tx: Sender<ReceivalRequest>, messenger: &mut Messenger) {
+    if data.sensor_service_data.read().unwrap().channel_status == ChannelStatus::OpenRequest {
+        let mut message = create_channel_open_response_message();
+        messenger.cryptor.encrypt_message(&mut message);
+        messenger.send_message_via_usb(message);
+        receival_queue_tx.send(ReceivalRequest).unwrap();
+        data.sensor_service_data.write().unwrap().channel_status = ChannelStatus::Open;
     }
-    use protobuf::Enum as protoenum;
-    //let message_id = crate::protos::MediaAudioChannelMessageIdsEnum::avchannel_message::Enum::from_i32(message_id_word as i32);
-    log::info!("Message ID (raw): {:?}", message_id_word);
+    if data.sensor_service_data.read().unwrap().setup_status == SetupStatus::Requested {
+        let mut first_indication_message = create_first_indication_message(data.sensor_service_data.read().unwrap().requested_sensor_type.unwrap());
+        messenger.cryptor.encrypt_message(&mut first_indication_message);
+        messenger.send_message_via_usb(first_indication_message);
+        let mut sensor_start_response_message = create_sensor_start_response_message();
+        messenger.cryptor.encrypt_message(&mut sensor_start_response_message);
+        messenger.send_message_via_usb(sensor_start_response_message);
+        receival_queue_tx.send(ReceivalRequest).unwrap();
+        data.sensor_service_data.write().unwrap().setup_status = SetupStatus::Finished;
+    }
 }
 
 pub fn create_channel_open_response_message() -> Frame {
@@ -71,7 +56,7 @@ pub fn create_night_sensor_indication_message() -> Frame {
     night_mode.set_is_night(is_night);
     indication.night_mode.push(night_mode);
 
-    let mut payload = (crate::channels::sensor_service_channel::SensorMessageID::SensorEventIndication as u16).to_be_bytes().to_vec();
+    let mut payload = (crate::channels::sensor::sensor_service_channel::SensorMessageID::SensorEventIndication as u16).to_be_bytes().to_vec();
     let mut bytes = indication.write_to_bytes().unwrap();
     payload.extend(bytes);
     let frame_header = FrameHeader {
@@ -91,7 +76,7 @@ pub fn create_driving_status_sensor_indication_message() -> Frame {
     driving_status.status = Some(crate::protos::DrivingStatusEnum::driving_status::Enum::UNRESTRICTED.value());
     indication.driving_status.push(driving_status);
 
-    let mut payload = (crate::channels::sensor_service_channel::SensorMessageID::SensorEventIndication as u16).to_be_bytes().to_vec();
+    let mut payload = (crate::channels::sensor::sensor_service_channel::SensorMessageID::SensorEventIndication as u16).to_be_bytes().to_vec();
     let mut bytes = indication.write_to_bytes().unwrap();
     payload.extend(bytes);
     let frame_header = FrameHeader {
@@ -114,7 +99,7 @@ pub fn create_location_sensor_indication_message() -> Frame {
     location.set_accuracy(0);
     indication.gps_location.push(location);
 
-    let mut payload = (crate::channels::sensor_service_channel::SensorMessageID::SensorEventIndication as u16).to_be_bytes().to_vec();
+    let mut payload = (crate::channels::sensor::sensor_service_channel::SensorMessageID::SensorEventIndication as u16).to_be_bytes().to_vec();
     let mut bytes = indication.write_to_bytes().unwrap();
     payload.extend(bytes);
     let frame_header = FrameHeader {
@@ -126,12 +111,12 @@ pub fn create_location_sensor_indication_message() -> Frame {
     message
 }
 
-pub fn create_sensor_start_response_message(request_message: Frame) -> Frame {
-    use protobuf::Message as protomsg;
+pub fn create_first_indication_message(requested_sensor_type: SensorTypeEnum::sensor_type::Enum) -> Frame {
+    /*use protobuf::Message as protomsg;
     let payload = request_message.payload.as_slice().clone();
     let sensor_start_request_message = crate::protos::SensorStartRequestMessage::SensorStartRequestMessage::parse_from_bytes(&payload[2..]).unwrap();
-    log::info!("Received sensor start request: {:?}, creating first sensor indication", sensor_start_request_message.sensor_type);
-    match sensor_start_request_message.sensor_type() {
+    log::info!("Received sensor start request: {:?}, creating first sensor indication", sensor_start_request_message.sensor_type);*/
+    match requested_sensor_type {
         crate::protos::SensorTypeEnum::sensor_type::Enum::DRIVING_STATUS => create_driving_status_sensor_indication_message(),
         crate::protos::SensorTypeEnum::sensor_type::Enum::NIGHT_DATA => create_night_sensor_indication_message(),
         crate::protos::SensorTypeEnum::sensor_type::Enum::LOCATION => create_location_sensor_indication_message(),
@@ -142,7 +127,7 @@ pub fn create_sensor_start_response_message(request_message: Frame) -> Frame {
     }
 }
 
-pub fn create_sensor_start_response_alternate() -> Frame {
+pub fn create_sensor_start_response_message() -> Frame {
     use protobuf::Message as protomsg;
     let frame_header = FrameHeader {
         encryption_type: EncryptionType::Encrypted,
@@ -151,7 +136,7 @@ pub fn create_sensor_start_response_alternate() -> Frame {
     };
     let mut sensor_start_response = crate::protos::SensorStartResponseMessage::SensorStartResponseMessage::new();
     sensor_start_response.set_status(crate::protos::StatusEnum::status::Enum::OK);
-    let mut payload = (crate::channels::sensor_service_channel::SensorMessageID::SensorStartResponse as u16).to_be_bytes().to_vec();
+    let mut payload = (crate::channels::sensor::sensor_service_channel::SensorMessageID::SensorStartResponse as u16).to_be_bytes().to_vec();
     let mut bytes = sensor_start_response.write_to_bytes().unwrap();
     payload.extend(bytes);
     let message = messenger::frame::Frame { frame_header, channel_id: ChannelID::Sensor, payload };

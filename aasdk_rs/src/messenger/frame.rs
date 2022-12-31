@@ -1,6 +1,7 @@
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum EncryptionType {
-    Plain = 0, //0
+    Plain = 0,
+    //0
     Encrypted = 1 << 3, //1000
 }
 
@@ -15,7 +16,8 @@ impl From<u8> for EncryptionType {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MessageType {
-    Specific = 0, //0
+    Specific = 0,
+    //0
     Control = 0b100, //100
 }
 
@@ -69,6 +71,17 @@ impl FrameHeader {
         let byte = self.encryption_type as u8 | self.message_type as u8 | self.frame_type as u8;
         return byte;
     }
+    fn get_frame_size_type(self) -> FrameSizeType {
+        match self.frame_type {
+            FrameType::First => FrameSizeType::Extended,
+            _ => FrameSizeType::Short,
+        }
+    }
+}
+
+enum FrameSizeType {
+    Short,
+    Extended,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -94,14 +107,22 @@ impl Frame {
     }
 
     pub fn from_data_frame(data_frame: &[u8]) -> Self {
+        let channel_id = ChannelID::from(data_frame[0]);
+        let frame_header = FrameHeader::from(data_frame[1]);
+        dbg!(frame_header.frame_type);
+        let frame_size_type = frame_header.get_frame_size_type();
+        let payload_start_byte_index = match frame_size_type {
+            FrameSizeType::Short => 4,
+            FrameSizeType::Extended => 8,
+        };
         log::debug!("Processing data_frame: {:?}", data_frame);
-        log::debug!("Starting bits: {:?}", &data_frame[..4]);
-        let payload_slice = &data_frame[4..];
+        log::debug!("Starting bytes: {:?}", &data_frame[..payload_start_byte_index]);
+        let payload_slice = &data_frame[payload_start_byte_index..];
         log::debug!("payload slice: {:?}", &payload_slice);
         get_size(data_frame);
         let to_return = Self {
-            frame_header: FrameHeader::from(data_frame[1]),
-            channel_id: ChannelID::from(data_frame[0]),
+            frame_header,
+            channel_id,
             payload: payload_slice.to_vec(),
         };
         //log::debug!("Message: {:?}", to_return);
@@ -141,7 +162,7 @@ impl From<u8> for ChannelID {
 }
 
 fn get_size(data_frame: &[u8]) -> u16 {
-    let size_bytes =  [data_frame[2],data_frame[3]];
+    let size_bytes = [data_frame[2], data_frame[3]];
     let size = u16::from_be_bytes(size_bytes);
     dbg!(size);
     size

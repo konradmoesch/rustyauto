@@ -43,6 +43,10 @@ impl Messenger {
         log::debug!("Finished receiving messages");
     }
     pub fn run(&mut self, data: &mut AndroidAutoEntityData) {
+        if *data.receive_more.read().unwrap() {
+            self.receival_queue.tx.send(ReceivalRequest).unwrap();
+            *data.receive_more.write().unwrap() = false;
+        }
         let current_messenger_status = (*data.messenger_status.read().unwrap()).clone();
         log::debug!("Messenger running now; current status: {:?}", current_messenger_status);
         self.receive_messages(data);

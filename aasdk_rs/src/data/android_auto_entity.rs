@@ -9,6 +9,7 @@ use crate::data::services::sensor_service_data::SensorServiceData;
 use crate::data::services::speech_audio_service_data::SpeechAudioServiceData;
 use crate::data::services::system_audio_service_data::SystemAudioServiceData;
 use crate::data::services::video_service_data::VideoServiceData;
+use crate::data::temp_message_storage::TempMessageStorage;
 
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub enum AutoEntityStatus {
@@ -63,6 +64,8 @@ pub struct AndroidAutoEntityData {
     //pub bluetooth_service_data: BluetoothServiceData,
     pub input_service_data: Arc<RwLock<InputServiceData>>,
     //pub wifi_service_data: WifiServiceData,
+    pub temp_message_storage: Arc<RwLock<TempMessageStorage>>,
+    pub receive_more: Arc<RwLock<bool>>,
 }
 
 impl Clone for AndroidAutoEntityData {
@@ -80,6 +83,8 @@ impl Clone for AndroidAutoEntityData {
             sensor_service_data: self.sensor_service_data.clone(),
             video_service_data: self.video_service_data.clone(),
             input_service_data: self.input_service_data.clone(),
+            temp_message_storage: self.temp_message_storage.clone(),
+            receive_more: self.receive_more.clone(),
         }
     }
 }
@@ -103,6 +108,8 @@ impl AndroidAutoEntityData {
             sensor_service_data: Arc::new(RwLock::new(SensorServiceData::new())),
             video_service_data: Arc::new(RwLock::new(VideoServiceData::new())),
             input_service_data: Arc::new(RwLock::new(InputServiceData::new())),
+            temp_message_storage: Arc::new(RwLock::new(TempMessageStorage::new())),
+            receive_more: Arc::new(RwLock::new(false)),
         }
     }
 }

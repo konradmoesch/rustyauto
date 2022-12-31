@@ -41,7 +41,7 @@ pub fn handle_message(message: &Frame, data: &mut AndroidAutoEntityData) {
                 },
                 _ => {
                     log::error!("Error: UnknownMessageID: {:?} ({:?})", message_id, message_id_word);
-                    unimplemented!()
+                    unimplemented!("UnknownMessageID: {:?}", message_id_word);
                 }
             }
         }

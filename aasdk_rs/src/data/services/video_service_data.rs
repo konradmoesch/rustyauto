@@ -22,7 +22,7 @@ pub struct VideoServiceConfig {
     pub dpi: usize,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum VideoIndicationType {
     StartIndication,
     VideoIndication,

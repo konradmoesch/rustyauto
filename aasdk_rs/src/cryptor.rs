@@ -91,7 +91,7 @@ impl Cryptor {
         memory_stream_ref.set_position(0);
         &memory_stream_ref.get_mut().extend(to_write);
 
-        let mut buffer = vec![0u8; 1000];
+        let mut buffer = vec![0u8; 99999];
         let size = self.ssl_stream.ssl_read(buffer.as_mut_slice()).expect("Failed to ssl stream");
         //log::debug!("Decrypted size: {}", size);
         buffer.as_slice()[0..size].to_vec()

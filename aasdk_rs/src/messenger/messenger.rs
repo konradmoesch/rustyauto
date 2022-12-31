@@ -144,7 +144,7 @@ impl Messenger {
     }
     fn receive_message_via_usb(&self) -> Frame {
         //todo: Max packet size?
-        let mut in_buffer = vec![0u8; 9999];
+        let mut in_buffer = vec![0u8; 99999];
         let size = self.usb_driver.read_buffer(in_buffer.as_mut_slice());
         in_buffer.truncate(size);
         let received_message = Frame::from_data_frame(in_buffer.as_slice());

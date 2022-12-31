@@ -1,24 +1,26 @@
 use std::sync::mpsc::Sender;
-use crate::{channels, messenger};
-use crate::messenger::frame::{ChannelID, EncryptionType, FrameHeader, FrameType, Frame, MessageType};
+
 use protobuf::Message as protomsg;
+
+use crate::{channels, messenger};
 use crate::channels::av_input::av_input_service_channel::AVMessageID;
 use crate::channels::control::message_ids::ControlMessageID;
 use crate::cryptor::Cryptor;
 use crate::data::android_auto_entity::AndroidAutoEntityData;
 use crate::data::services::general::{ChannelStatus, SetupStatus};
+use crate::data::services::video_service_data::VideoIndicationType;
+use crate::messenger::frame::{ChannelID, EncryptionType, Frame, FrameHeader, FrameType, MessageType};
 use crate::messenger::messenger::{Messenger, ReceivalRequest};
 use crate::usbdriver::UsbDriver;
 
 pub fn run(data: &mut AndroidAutoEntityData, receival_queue_tx: Sender<ReceivalRequest>, messenger: &mut Messenger) {
     if data.video_service_data.read().unwrap().channel_status == ChannelStatus::OpenRequest {
-        let mut  message = create_channel_open_response_message();
+        let mut message = create_channel_open_response_message();
         messenger.cryptor.encrypt_message(&mut message);
         messenger.send_message_via_usb(message);
         receival_queue_tx.send(ReceivalRequest).unwrap();
         data.video_service_data.write().unwrap().channel_status = ChannelStatus::Open;
-    }
-    else if data.video_service_data.read().unwrap().setup_status == SetupStatus::Requested {
+    } else if data.video_service_data.read().unwrap().setup_status == SetupStatus::Requested {
         log::info!("Sending video focus indication");
         let mut video_focus_message = create_video_focus_indication();
         messenger.cryptor.encrypt_message(&mut video_focus_message);
@@ -28,8 +30,7 @@ pub fn run(data: &mut AndroidAutoEntityData, receival_queue_tx: Sender<ReceivalR
         messenger.send_message_via_usb(setup_response_message);
         receival_queue_tx.send(ReceivalRequest).unwrap();
         data.video_service_data.write().unwrap().setup_status = SetupStatus::Finished;
-    }
-    else if data.video_service_data.read().unwrap().setup_status == SetupStatus::Finished {
+    } else if data.video_service_data.read().unwrap().setup_status == SetupStatus::Finished {
         let last_indication = data.video_service_data.read().unwrap().received_indication.clone();
         match last_indication {
             Some(indication_type) => {
@@ -38,7 +39,7 @@ pub fn run(data: &mut AndroidAutoEntityData, receival_queue_tx: Sender<ReceivalR
                 messenger.send_message_via_usb(indication_ack_message);
                 receival_queue_tx.send(ReceivalRequest).unwrap();
                 data.video_service_data.write().unwrap().received_indication = None;
-            },
+            }
             None => {
                 log::debug!("No indication received");
             }
@@ -120,7 +121,6 @@ pub fn create_av_media_ack_indication() -> Frame {
     //println!("{:x?}", bytes);
     payload.extend(bytes);
     //println!("{:x?}", payload);
-    let message = messenger::frame::Frame { frame_header, channel_id: ChannelID::Video, payload};
+    let message = messenger::frame::Frame { frame_header, channel_id: ChannelID::Video, payload };
     message
-
 }

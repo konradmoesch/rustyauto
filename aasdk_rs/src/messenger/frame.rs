@@ -94,8 +94,11 @@ impl Frame {
     }
 
     pub fn from_data_frame(data_frame: &[u8]) -> Self {
-        //log::debug!("Processing data_frame: {:?}", data_frame);
+        log::debug!("Processing data_frame: {:?}", data_frame);
+        log::debug!("Starting bits: {:?}", &data_frame[..4]);
         let payload_slice = &data_frame[4..];
+        log::debug!("payload slice: {:?}", &payload_slice);
+        get_size(data_frame);
         let to_return = Self {
             frame_header: FrameHeader::from(data_frame[1]),
             channel_id: ChannelID::from(data_frame[0]),
@@ -135,4 +138,11 @@ impl From<u8> for ChannelID {
             _ => ChannelID::None
         }
     }
+}
+
+fn get_size(data_frame: &[u8]) -> u16 {
+    let size_bytes =  [data_frame[2],data_frame[3]];
+    let size = u16::from_be_bytes(size_bytes);
+    dbg!(size);
+    size
 }

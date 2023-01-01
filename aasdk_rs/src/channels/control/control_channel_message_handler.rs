@@ -38,6 +38,7 @@ pub fn handle_message(message: &Frame, data: &mut AndroidAutoEntityData) {
         ControlMessageID::SSLHandshake => { handle_ssl_handshake(payload[2..].to_vec()) }
         ControlMessageID::ServiceDiscoveryRequest => { handle_service_discovery_request(payload[2..].to_vec(), data) }
         ControlMessageID::AudioFocusRequest => { handle_audio_focus_request(payload[2..].to_vec()) }
+        ControlMessageID::NavigationFocusRequest => { handle_navigation_focus_request(payload[2..].to_vec(), data) }
         _ => { log::error!("error trying to handle unknown message {message_id:?}") }
     }
 }
@@ -98,4 +99,19 @@ fn handle_audio_focus_request(payload: Vec<u8>) {
     //let message = create_audio_focus_response_message(response);
     let message = create_audio_focus_response_message();
     dbg!(message);
+}
+
+fn handle_navigation_focus_request(payload: Vec<u8>, data: &mut AndroidAutoEntityData) {
+    let request = crate::protos::NavigationFocusRequestMessage::NavigationFocusRequest::parse_from_bytes(payload.as_slice()).unwrap();
+    log::debug!("Received navigation focus request: {:?}", payload);
+    //dbg!(request.clone());
+    //log::info!("Requested navigation focus, type: {:?}", request.navigation_focus_type());
+
+    data.control_service_data.write().unwrap().navigation_focus_requested = true;
+
+    //let mut response = crate::protos::NavigationFocusResponseMessage::NavigationFocusResponse::new();
+
+    //let message = create_audio_focus_response_message(response);
+    //let message = create_navigation_focus_response_message();
+    //dbg!(message);
 }

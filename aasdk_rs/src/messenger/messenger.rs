@@ -40,7 +40,7 @@ impl Messenger {
             let received_message = self.receive_and_decrypt_message();
             crate::messenger::message_handler::handle_message(&received_message, data);
         }
-        log::debug!("Finished receiving messages");
+        //log::debug!("Finished receiving messages");
     }
     pub fn run(&mut self, data: &mut AndroidAutoEntityData) {
         if *data.receive_more.read().unwrap() {
@@ -48,7 +48,7 @@ impl Messenger {
             *data.receive_more.write().unwrap() = false;
         }
         let current_messenger_status = (*data.messenger_status.read().unwrap()).clone();
-        log::debug!("Messenger running now; current status: {:?}", current_messenger_status);
+        //log::debug!("Messenger running now; current status: {:?}", current_messenger_status);
         self.receive_messages(data);
         match current_messenger_status {
             MessengerStatus::Uninitialized => {
@@ -136,7 +136,7 @@ impl Messenger {
             }
             MessengerStatus::InitializationDone => {
                 //run channels
-                channels::control::control_service_channel::run(data, self.receival_queue.tx.clone());
+                channels::control::control_service_channel::run(data, self.receival_queue.tx.clone(), self);
                 channels::av_input::av_input_service_channel::run(data, self.receival_queue.tx.clone(), self);
                 channels::media_audio::media_audio_service_channel::run(data, self.receival_queue.tx.clone(), self);
                 channels::speech_audio::speech_audio_service_channel::run(data, self.receival_queue.tx.clone(), self);

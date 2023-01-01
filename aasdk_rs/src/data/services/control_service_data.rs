@@ -18,6 +18,7 @@ pub enum ServiceDiscoveryState {
 pub struct ControlServiceData {
     pub audio_focus_state: AudioFocusState,
     pub service_discovery_state: ServiceDiscoveryState,
+    pub navigation_focus_requested: bool,
 }
 
 impl ControlServiceData {
@@ -25,6 +26,7 @@ impl ControlServiceData {
         ControlServiceData {
             audio_focus_state: AudioFocusState::Lost,
             service_discovery_state: ServiceDiscoveryState::Idle,
+            navigation_focus_requested: false,
         }
     }
 }

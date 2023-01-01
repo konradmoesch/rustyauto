@@ -12,7 +12,7 @@ use crate::data::android_auto_entity::AndroidAutoEntityData;
 use crate::data::messenger::MessengerStatus;
 use crate::data::services::control_service_data::{AudioFocusState, ServiceDiscoveryState};
 use crate::messenger::frame::{ChannelID, EncryptionType, FrameHeader, FrameType, Frame, MessageType};
-use crate::messenger::messenger::ReceivalRequest;
+use crate::messenger::messenger::{Messenger, ReceivalRequest};
 use crate::protos::ServiceDiscoveryRequestMessage::ServiceDiscoveryRequest;
 use crate::protos::ServiceDiscoveryResponseMessage::ServiceDiscoveryResponse;
 
@@ -170,7 +170,7 @@ pub fn temp_fill_service_features(sdr: &mut crate::protos::ServiceDiscoveryRespo
     //todo WifiService
 }
 
-pub fn run(data: &mut AndroidAutoEntityData, receival_queue_tx: Sender<ReceivalRequest>) {
+pub fn run(data: &mut AndroidAutoEntityData, receival_queue_tx: Sender<ReceivalRequest>, messenger: &mut Messenger) {
     let current_data = data.control_service_data.read().unwrap().clone();
     if current_data.service_discovery_state == ServiceDiscoveryState::Requested {
 
@@ -196,6 +196,13 @@ pub fn run(data: &mut AndroidAutoEntityData, receival_queue_tx: Sender<ReceivalR
     if current_data.audio_focus_state == AudioFocusState::Requested {
         create_audio_focus_response_message();
         data.control_service_data.write().unwrap().audio_focus_state = AudioFocusState::Gained;
+        receival_queue_tx.send(ReceivalRequest).unwrap();
+    }
+    if current_data.navigation_focus_requested {
+        let mut navigation_focus_response_message = create_navigation_focus_response_message();
+        messenger.cryptor.encrypt_message(&mut navigation_focus_response_message);
+        messenger.send_message_via_usb(navigation_focus_response_message);
+        data.control_service_data.write().unwrap().navigation_focus_requested = false;
         receival_queue_tx.send(ReceivalRequest).unwrap();
     }
 }
@@ -270,6 +277,23 @@ pub fn create_audio_focus_response_message() -> Frame {
     audio_focus_response.set_audio_focus_state(crate::protos::AudioFocusStateEnum::audio_focus_state::Enum::LOSS);
     let mut payload = (ControlMessageID::AudioFocusResponse as u16).to_be_bytes().to_vec();
     let mut bytes = audio_focus_response.write_to_bytes().unwrap();
+    payload.extend(bytes);
+    let message = messenger::frame::Frame { frame_header, channel_id: ChannelID::Control, payload };
+    message
+}
+
+pub fn create_navigation_focus_response_message() -> Frame {
+    log::info!("Creating navigation focus response message");
+    let frame_header = FrameHeader {
+        encryption_type: EncryptionType::Encrypted,
+        message_type: MessageType::Specific,
+        frame_type: FrameType::Bulk,
+    };
+    let mut navigation_focus_response = crate::protos::NavigationFocusResponseMessage::NavigationFocusResponse::new();
+    //TODO: figure out types
+    navigation_focus_response.set_type(2);
+    let mut payload = (ControlMessageID::NavigationFocusResponse as u16).to_be_bytes().to_vec();
+    let mut bytes = navigation_focus_response.write_to_bytes().unwrap();
     payload.extend(bytes);
     let message = messenger::frame::Frame { frame_header, channel_id: ChannelID::Control, payload };
     message

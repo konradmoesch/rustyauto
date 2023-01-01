@@ -17,3 +17,6 @@ fern = { version = "0.6.0", features = ["colored"] }
 chrono = "0.4.19"
 log = "0.4"
 rusb = "0.9"
+gstreamer = "0.19.4"
+gstreamer-app = "0.19.2"
+gstreamer-video = "0.19.5"

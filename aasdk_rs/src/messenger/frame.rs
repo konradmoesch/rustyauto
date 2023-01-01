@@ -115,10 +115,10 @@ impl Frame {
             FrameSizeType::Short => 4,
             FrameSizeType::Extended => 8,
         };
-        log::debug!("Processing data_frame: {:?}", data_frame);
-        log::debug!("Starting bytes: {:?}", &data_frame[..payload_start_byte_index]);
+        //log::debug!("Processing data_frame: {:?}", data_frame);
+        //log::debug!("Starting bytes: {:?}", &data_frame[..payload_start_byte_index]);
         let payload_slice = &data_frame[payload_start_byte_index..];
-        log::debug!("payload slice: {:?}", &payload_slice);
+        //log::debug!("payload slice: {:?}", &payload_slice);
         get_size(data_frame);
         let to_return = Self {
             frame_header,

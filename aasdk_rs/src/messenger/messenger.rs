@@ -2,7 +2,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 
 use crate::channels;
 use crate::cryptor::Cryptor;
-use crate::data::android_auto_entity::AndroidAutoEntityData;
+use crate::data::android_auto_entity::{AndroidAutoEntityData, AutoEntityStatus};
 use crate::data::messenger::{HandshakeStatus, MessengerStatus};
 use crate::data::services::control_service_data::{AudioFocusState, ServiceDiscoveryState};
 use crate::data::services::service_data::{ServiceData, ServiceType};
@@ -132,6 +132,7 @@ impl Messenger {
                 self.receival_queue.tx.send(ReceivalRequest).unwrap();
 
                 *data.messenger_status.write().unwrap() = MessengerStatus::InitializationDone;
+                *data.status.write().unwrap() = AutoEntityStatus::Initialized;
             }
             MessengerStatus::InitializationDone => {
                 //run channels

@@ -52,6 +52,6 @@ impl Service for VideoService {
     }
 
     fn run(&mut self, data: &mut AndroidAutoEntityData) {
-        todo!()
+        log::info!("Video service running");
     }
 }

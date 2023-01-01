@@ -38,7 +38,7 @@ pub fn handle_message(message: &Frame, data: &mut AndroidAutoEntityData) {
         ControlMessageID::SSLHandshake => { handle_ssl_handshake(payload[2..].to_vec()) }
         ControlMessageID::ServiceDiscoveryRequest => { handle_service_discovery_request(payload[2..].to_vec(), data) }
         ControlMessageID::AudioFocusRequest => { handle_audio_focus_request(payload[2..].to_vec()) }
-        _ => { panic!("error trying to handle unknown message {message_id:?}") }
+        _ => { log::error!("error trying to handle unknown message {message_id:?}") }
     }
 }
 

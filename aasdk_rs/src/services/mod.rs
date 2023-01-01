@@ -2,7 +2,7 @@ pub mod service;
 pub(crate) mod input_service;
 pub(crate) mod audio_input_service;
 pub mod sensor_service;
-pub(crate) mod video_service;
+pub mod video_service;
 pub(crate) mod bluetooth_service;
 pub(crate) mod wifi_service;
 pub(crate) mod system_audio_service;

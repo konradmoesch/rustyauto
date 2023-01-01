@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use crate::data::services::general::{ChannelStatus, ServiceStatus, SetupStatus};
 
 #[derive(Copy, Clone)]
@@ -29,11 +30,14 @@ pub enum VideoIndicationType {
     VideoIndicationWithTimestamp,
 }
 
+pub struct Indication(pub Vec<u8>);
+
 pub struct VideoServiceData {
     pub status: crate::data::services::general::ServiceStatus,
     pub channel_status: ChannelStatus,
     pub setup_status: SetupStatus,
     pub received_indication: Option<VideoIndicationType>,
+    pub buffer: VecDeque<Indication>,
     pub config: VideoServiceConfig,
 }
 
@@ -44,6 +48,7 @@ impl VideoServiceData {
             channel_status: ChannelStatus::Closed,
             setup_status: SetupStatus::NotStarted,
             received_indication: None,
+            buffer: VecDeque::new(),
             config: VideoServiceConfig {
                 video_resolution: VideoResolution::_480p,
                 video_fps: VideoFPS::_30,

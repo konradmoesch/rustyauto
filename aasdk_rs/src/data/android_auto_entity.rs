@@ -1,4 +1,5 @@
 use std::sync::{Arc, RwLock};
+use std::sync::mpsc::Sender;
 
 use crate::data::messenger::MessengerStatus;
 use crate::data::services::audio_input_service_data::AudioInputServiceData;
@@ -8,7 +9,7 @@ use crate::data::services::media_audio_service_data::MediaAudioServiceData;
 use crate::data::services::sensor_service_data::SensorServiceData;
 use crate::data::services::speech_audio_service_data::SpeechAudioServiceData;
 use crate::data::services::system_audio_service_data::SystemAudioServiceData;
-use crate::data::services::video_service_data::VideoServiceData;
+use crate::data::services::video_service_data::{Indication, VideoServiceData};
 use crate::data::temp_message_storage::TempMessageStorage;
 
 #[derive(PartialEq, Debug, Copy, Clone)]
@@ -66,6 +67,7 @@ pub struct AndroidAutoEntityData {
     //pub wifi_service_data: WifiServiceData,
     pub temp_message_storage: Arc<RwLock<TempMessageStorage>>,
     pub receive_more: Arc<RwLock<bool>>,
+    pub view_sender: Sender<Vec<u8>>,
 }
 
 impl Clone for AndroidAutoEntityData {
@@ -85,12 +87,13 @@ impl Clone for AndroidAutoEntityData {
             input_service_data: self.input_service_data.clone(),
             temp_message_storage: self.temp_message_storage.clone(),
             receive_more: self.receive_more.clone(),
+            view_sender: self.view_sender.clone(),
         }
     }
 }
 
 impl AndroidAutoEntityData {
-    pub fn new(config: AndroidAutoConfig) -> Self {
+    pub fn new(config: AndroidAutoConfig, sender: Sender<Vec<u8>>) -> Self {
         AndroidAutoEntityData {
             status: Arc::new(RwLock::new(AutoEntityStatus::Uninitialized)),
             messenger_status: Arc::new(RwLock::new(MessengerStatus::Uninitialized)),
@@ -110,6 +113,7 @@ impl AndroidAutoEntityData {
             input_service_data: Arc::new(RwLock::new(InputServiceData::new())),
             temp_message_storage: Arc::new(RwLock::new(TempMessageStorage::new())),
             receive_more: Arc::new(RwLock::new(false)),
+            view_sender: sender,
         }
     }
 }

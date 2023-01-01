@@ -1,8 +1,12 @@
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::net::UdpSocket;
+use std::os::unix::net::UnixStream;
 use crate::channels::av_input::av_input_service_channel::AVMessageID;
 use crate::channels::control::message_ids::ControlMessageID;
 use crate::data::android_auto_entity::AndroidAutoEntityData;
-use crate::data::services::general::{ChannelStatus, SetupStatus};
-use crate::data::services::video_service_data::VideoIndicationType;
+use crate::data::services::general::{ChannelStatus, ServiceStatus, SetupStatus};
+use crate::data::services::video_service_data::{Indication, VideoIndicationType};
 use crate::messenger::frame::{Frame, MessageType};
 
 fn handle_channel_open_request(message: &Frame, data: &mut AndroidAutoEntityData) {
@@ -11,7 +15,7 @@ fn handle_channel_open_request(message: &Frame, data: &mut AndroidAutoEntityData
 }
 
 pub fn handle_message(message: &Frame, data: &mut AndroidAutoEntityData) {
-    log::info!("Received message in video service channel: {:?}", message);
+    //log::info!("Received message in video service channel: {:?}", message);
     let payload = message.clone().payload;
     let message_id_word = u16::from_be_bytes([payload.as_slice()[0], payload.as_slice()[1]]);
     //TODO: use word correctly
@@ -25,18 +29,38 @@ pub fn handle_message(message: &Frame, data: &mut AndroidAutoEntityData) {
                 }
                 Ok(AVMessageID::StartIndication) => {
                     log::info!("Received start indication for video service");
-                    log::debug!("Indication content: {:?}", payload.as_slice());
+                    //log::debug!("Indication content: {:?}", payload.as_slice());
+                    data.video_service_data.write().unwrap().status = ServiceStatus::Initialized;
+                    //data.video_service_data.write().unwrap().buffer.push_back(Indication(payload));
                     data.video_service_data.write().unwrap().received_indication = Some(VideoIndicationType::StartIndication);
                 }
                 Ok(AVMessageID::AvMediaIndication) => {
                     log::info!("Received AV Media Indication");
-                    log::debug!("Indication content: {:?}", payload.as_slice());
+                    //log::debug!("Indication content: {:?}", payload.as_slice());
+                    //let mut stream = UnixStream::connect("/tmp/vid").unwrap();
+                    let socket = UdpSocket::bind("127.0.0.1:34254").unwrap();
+                    let mut file = OpenOptions::new().append(true).open("/home/km/data.mp4").expect("create failed");
+                    file.write_all(payload.as_slice()[2..].to_vec().as_slice()).expect("write failed");
+                    //stream.write_all(payload.as_slice()[2..].to_vec().as_slice()).unwrap();
+                    socket.send_to(payload.as_slice()[2..].to_vec().as_slice(), "127.0.0.1:5004").unwrap();
+                    //stream.flush().unwrap();
+                    data.video_service_data.write().unwrap().buffer.push_back(Indication(payload.as_slice()[2..].to_vec()));
+                    //data.view_sender.send(payload.as_slice()[2..].to_vec()).unwrap();
                     data.video_service_data.write().unwrap().received_indication = Some(VideoIndicationType::VideoIndication);
                 }
                 Ok(AVMessageID::AvMediaWithTimestampIndication) => {
                     log::info!("Received AV Media Indication with timestamp");
                     crate::messenger::timestamp::get_timestamp_from_bytes(&payload.as_slice()[2..]);
-                    log::debug!("Indication content: {:?}", payload.as_slice());
+                    //log::debug!("Indication content: {:?}", payload.as_slice());
+                    //let mut stream = UnixStream::connect("/tmp/vid").unwrap();
+                    let socket = UdpSocket::bind("127.0.0.1:34254").unwrap();
+                    let mut file = OpenOptions::new().append(true).open("/home/km/data.mp4").expect("create failed");
+                    file.write_all(payload.as_slice()[10..].to_vec().as_slice()).expect("write failed");
+                    //stream.write_all(payload.as_slice()[10..].to_vec().as_slice()).unwrap();
+                    socket.send_to(payload.as_slice()[10..].to_vec().as_slice(), "127.0.0.1:5004").unwrap();
+                    //stream.flush().unwrap();
+                    data.video_service_data.write().unwrap().buffer.push_back(Indication(payload.as_slice()[10..].to_vec()));
+                    //data.view_sender.send(payload.as_slice()[10..].to_vec()).unwrap();
                     data.video_service_data.write().unwrap().received_indication = Some(VideoIndicationType::VideoIndicationWithTimestamp);
                 },
                 _ => {

@@ -37,7 +37,7 @@ pub struct VideoServiceData {
     pub channel_status: ChannelStatus,
     pub setup_status: SetupStatus,
     pub received_indication: Option<VideoIndicationType>,
-    pub buffer: VecDeque<Indication>,
+    pub buffer: VecDeque<Vec<u8>>,
     pub config: VideoServiceConfig,
 }
 

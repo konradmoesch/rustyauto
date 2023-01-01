@@ -1,4 +1,5 @@
-use std::sync::{Arc, RwLock};
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex, RwLock};
 use std::sync::mpsc::Sender;
 
 use crate::data::messenger::MessengerStatus;
@@ -68,6 +69,7 @@ pub struct AndroidAutoEntityData {
     pub temp_message_storage: Arc<RwLock<TempMessageStorage>>,
     pub receive_more: Arc<RwLock<bool>>,
     pub view_sender: Sender<Vec<u8>>,
+    //pub view_buf: Arc<Mutex<VecDeque<Vec<u8>>>>,
 }
 
 impl Clone for AndroidAutoEntityData {
@@ -88,6 +90,7 @@ impl Clone for AndroidAutoEntityData {
             temp_message_storage: self.temp_message_storage.clone(),
             receive_more: self.receive_more.clone(),
             view_sender: self.view_sender.clone(),
+            //view_buf: self.view_buf.clone(),
         }
     }
 }
@@ -114,6 +117,7 @@ impl AndroidAutoEntityData {
             temp_message_storage: Arc::new(RwLock::new(TempMessageStorage::new())),
             receive_more: Arc::new(RwLock::new(false)),
             view_sender: sender,
+            //view_buf: Arc::new(Mutex::new(VecDeque::new())),
         }
     }
 }

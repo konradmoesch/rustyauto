@@ -2,16 +2,16 @@ use std::cell::RefCell;
 use std::sync::mpsc::Receiver;
 use std::time::Duration;
 
+use gio::prelude::*;
 use gstreamer::MessageView;
 use gstreamer::prelude::*;
-
-use gio::prelude::*;
 use gtk::glib;
 use gtk::prelude::*;
 
 use aasdk_rs::cryptor::Cryptor;
 use aasdk_rs::data;
 use aasdk_rs::data::android_auto_entity::{AndroidAutoConfig, AndroidAutoEntityData};
+use aasdk_rs::data::services::input_service_data::{TouchActionType, TouchPosition};
 use aasdk_rs::data::services::video_service_data::Indication;
 use aasdk_rs::messenger::messenger::{Messenger, ReceivalQueue};
 use aasdk_rs::services::sensor_service::SensorService;
@@ -29,6 +29,7 @@ fn setup_logger() -> Result<(), fern::InitError> {
                 message
             ))
         })
+        //.level(log::LevelFilter::Info)
         .level(log::LevelFilter::Debug)
         .chain(std::io::stdout())
         //.chain(fern::log_file("output.log")?)
@@ -89,7 +90,7 @@ fn main() {
 
             std::thread::spawn(move || {
                 while view_data.video_service_data.read().unwrap().status != aasdk_rs::data::services::general::ServiceStatus::Initialized {}
-                create_pipeline(rx);
+                create_pipeline(view_data);
             });
 
             loop {
@@ -116,7 +117,7 @@ fn main() {
     };
 }
 
-fn create_ui(app: &gtk::Application) {
+fn create_ui(app: &gtk::Application, mut view_data: AndroidAutoEntityData) {
     let pipeline = gstreamer::Pipeline::default();
 
     let udp_caps = gstreamer::Caps::builder("video/x-h264")
@@ -150,11 +151,65 @@ fn create_ui(app: &gtk::Application) {
     pipeline.add_many(&[&src, &parse, &decode, &glup, &sink]).unwrap();
     gstreamer::Element::link_many(&[&src, &parse, &decode, &glup, &sink]).unwrap();
 
+    /*let appsrc = src
+        .dynamic_cast::<gstreamer_app::AppSrc>()
+        .expect("Source element is expected to be an appsrc!");
+
+    appsrc.set_is_live(true);
+
+    let mut i = 0;
+    appsrc.set_callbacks(
+        gstreamer_app::AppSrcCallbacks::builder()
+            .need_data(move |appsrc, _| {
+                println!("Producing frame {}", i);
+                match view_data.video_service_data.write().unwrap().buffer.pop_front() {
+                    None => { log::error!("No NAL frames in buffer!") }
+                    Some(frame) => {
+                        //let buffer = gstreamer::Buffer::from_slice(&view_data.video_service_data.write().unwrap().buffer.iter().nth(i).unwrap().0);
+                        //let buffer = gstreamer::Buffer::from_mut_slice(&view_receiver.recv());
+                        //let buffer = gstreamer::Buffer::from_slice(frame.0.iter().nth(i).as_slice());
+                        //let buffer = gstreamer::Buffer::from_mut_slice(view_data.view_buf.lock().unwrap().pop_front().unwrap());
+                        let buffer = gstreamer::Buffer::from_mut_slice(frame);
+                        i += 1;
+
+                        // appsrc already handles the error here
+                        let _ = appsrc.push_buffer(buffer);
+                    }
+                }
+            })
+            .build(),
+    );*/
+
     // Create a simple gtk gui window to place our widget into.
     let window = gtk::Window::new(gtk::WindowType::Toplevel);
     window.set_default_size(720, 480);
     let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
     // Add our widget to the gui
+    //let touch_controller = gtk::GestureSingle;
+    //touch_controller.set_touch_only(true);
+    widget.add_events(gdk::EventMask::TOUCH_MASK);
+    //widget.connect("touch-event", false, |event| {dbg!(event);log::info!("Touch event");Some(event)});
+    widget.connect_event(move |widget, event| {
+        match event.event_type() {
+            gdk::EventType::TouchBegin | gdk::EventType::TouchUpdate | gdk::EventType::TouchEnd => {
+                log::info!("Touch event");
+                let raw_touch_position = event.coords().unwrap();
+                let touch_action = match event.event_type() {
+                    gdk::EventType::TouchBegin => Some(TouchActionType::Press),
+                    gdk::EventType::TouchUpdate => Some(TouchActionType::Drag),
+                    gdk::EventType::TouchEnd => Some(TouchActionType::Release),
+                    _ => None,
+
+                };
+                let touch_position = TouchPosition(raw_touch_position.0 as usize, raw_touch_position.1 as usize);
+                log::info!("Location: {:?}", touch_position);
+                view_data.input_service_data.write().unwrap().current_touch_position = Some(touch_position);
+                view_data.input_service_data.write().unwrap().current_touch_action = touch_action;
+            }
+            _ => { dbg!(event); }
+        }
+        gtk::Inhibit(false)
+    });
     vbox.pack_start(&widget, true, true, 0);
     let label = gtk::Label::new(Some("Position: 00:00:00"));
     vbox.pack_start(&label, true, true, 5);
@@ -245,14 +300,14 @@ fn create_ui(app: &gtk::Application) {
     });
 }
 
-fn create_pipeline(view_receiver: Receiver<Vec<u8>>) {
+fn create_pipeline(mut view_data: AndroidAutoEntityData) {
     gstreamer::init().unwrap();
     gtk::init().unwrap();
 
     {
         let app = gtk::Application::new(None, gio::ApplicationFlags::FLAGS_NONE);
 
-        app.connect_activate(create_ui);
+        app.connect_activate(move |app| { create_ui(app, view_data.clone()) });
         app.run();
     }
 

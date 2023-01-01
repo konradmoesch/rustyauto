@@ -8,6 +8,7 @@ use crate::channels::av_input::av_input_service_channel::AVMessageID;
 use crate::channels::control::message_ids::ControlMessageID;
 use crate::data::android_auto_entity::AndroidAutoEntityData;
 use crate::data::services::general::{ChannelStatus, SetupStatus};
+use crate::data::services::input_service_data::{TouchActionType, TouchPosition};
 use crate::messenger;
 use crate::messenger::frame::{ChannelID, EncryptionType, Frame, FrameHeader, FrameType, MessageType};
 use crate::messenger::messenger::{Messenger, ReceivalRequest};
@@ -27,6 +28,18 @@ pub fn run(data: &mut AndroidAutoEntityData, receival_queue_tx: Sender<ReceivalR
         receival_queue_tx.send(ReceivalRequest).unwrap();
         data.input_service_data.write().unwrap().setup_status = SetupStatus::Finished;
     }
+    if let Some(position) = data.input_service_data.read().unwrap().current_touch_position {
+        log::error!("Touch position recv! {:?}", position);
+        let action = data.input_service_data.read().unwrap().current_touch_action.unwrap();
+        let mut touch_input_indication = create_touch_event_indication(position, action);
+        messenger.cryptor.encrypt_message(&mut touch_input_indication);
+        messenger.send_message_via_usb(touch_input_indication);
+        log::info!("Sent touch event indication");
+    } else {
+        log::error!("No Touch");
+    }
+    //TODO: reset properly, also capture event type
+    data.input_service_data.write().unwrap().current_touch_position = None;
 }
 
 pub fn create_channel_open_response_message() -> Frame {
@@ -65,6 +78,32 @@ pub fn create_binding_response_message(binding_request: crate::protos::BindingRe
     };
     let mut payload = (InputMessageID::BindingResponse as u16).to_be_bytes().to_vec();
     payload.extend(binding_response.write_to_bytes().unwrap());
+    crate::messenger::frame::Frame { frame_header, channel_id: ChannelID::Input, payload }
+}
+
+pub fn create_touch_event_indication(touch_position: TouchPosition, touch_action: TouchActionType) -> Frame {
+    let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    let mut input_indication = crate::protos::InputEventIndicationMessage::InputEventIndication::new();
+    input_indication.set_timestamp(timestamp);
+
+    let mut touch_event = crate::protos::TouchEventData::TouchEvent::new();
+    use protobuf::Enum;
+    let proto_action = crate::protos::TouchActionEnum::touch_action::Enum::from_i32(touch_action as i32).unwrap();
+    touch_event.set_touch_action(proto_action);//event.type;
+    let mut touch_location = crate::protos::TouchLocationData::TouchLocation::new();
+    touch_location.x = Some(touch_position.0 as u32);
+    touch_location.y = Some(touch_position.1 as u32);
+    touch_location.set_pointer_id(0);
+    touch_event.touch_location.push(touch_location);
+    input_indication.touch_event = Some(touch_event).into();
+
+    let frame_header = FrameHeader {
+        encryption_type: EncryptionType::Encrypted,
+        message_type: MessageType::Specific,
+        frame_type: FrameType::Bulk,
+    };
+    let mut payload = (InputMessageID::InputEventIndication as u16).to_be_bytes().to_vec();
+    payload.extend(input_indication.write_to_bytes().unwrap());
     crate::messenger::frame::Frame { frame_header, channel_id: ChannelID::Input, payload }
 }
 

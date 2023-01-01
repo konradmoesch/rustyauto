@@ -75,6 +75,16 @@ fn main() -> Result<()> {
         .input("src/protos/AVMediaAckIndicationMessage.proto")
         .input("src/protos/NavigationFocusRequestMessage.proto")
         .input("src/protos/NavigationFocusResponseMessage.proto")
+        .input("src/protos/InputEventIndicationMessage.proto")
+        .input("src/protos/TouchEventData.proto")
+        .input("src/protos/ButtonEventsData.proto")
+        .input("src/protos/ButtonEventData.proto")
+        .input("src/protos/AbsoluteInputEventsData.proto")
+        .input("src/protos/AbsoluteInputEventData.proto")
+        .input("src/protos/RelativeInputEventsData.proto")
+        .input("src/protos/RelativeInputEventData.proto")
+        .input("src/protos/TouchLocationData.proto")
+        .input("src/protos/TouchActionEnum.proto")
         // Specify output directory relative to Cargo output directory.
         .cargo_out_dir("protos")
         .run_from_script();

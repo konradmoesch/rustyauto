@@ -44,8 +44,10 @@ pub fn handle_message(message: &Frame, data: &mut AndroidAutoEntityData) {
                     //stream.write_all(payload.as_slice()[2..].to_vec().as_slice()).unwrap();
                     socket.send_to(payload.as_slice()[2..].to_vec().as_slice(), "127.0.0.1:5004").unwrap();
                     //stream.flush().unwrap();
-                    data.video_service_data.write().unwrap().buffer.push_back(Indication(payload.as_slice()[2..].to_vec()));
+                    //data.video_service_data.write().unwrap().status = ServiceStatus::Initialized;
+                    //data.video_service_data.write().unwrap().buffer.push_back(payload.as_slice()[2..].to_vec());
                     //data.view_sender.send(payload.as_slice()[2..].to_vec()).unwrap();
+                    //data.view_buf.clone().lock().unwrap().push_back(payload.as_slice()[2..].to_vec());
                     data.video_service_data.write().unwrap().received_indication = Some(VideoIndicationType::VideoIndication);
                 }
                 Ok(AVMessageID::AvMediaWithTimestampIndication) => {
@@ -57,10 +59,12 @@ pub fn handle_message(message: &Frame, data: &mut AndroidAutoEntityData) {
                     let mut file = OpenOptions::new().append(true).open("/home/km/data.mp4").expect("create failed");
                     file.write_all(payload.as_slice()[10..].to_vec().as_slice()).expect("write failed");
                     //stream.write_all(payload.as_slice()[10..].to_vec().as_slice()).unwrap();
-                    socket.send_to(payload.as_slice()[10..].to_vec().as_slice(), "127.0.0.1:5004").unwrap();
+                    socket.send_to(payload.as_slice()[10..].to_vec().as_slice(), "127.0.0.1:5004").unwrap_or_default();
                     //stream.flush().unwrap();
-                    data.video_service_data.write().unwrap().buffer.push_back(Indication(payload.as_slice()[10..].to_vec()));
+                    //data.video_service_data.write().unwrap().status = ServiceStatus::Initialized;
+                    //data.video_service_data.write().unwrap().buffer.push_back(payload.as_slice()[10..].to_vec());
                     //data.view_sender.send(payload.as_slice()[10..].to_vec()).unwrap();
+                    //data.view_buf.clone().lock().unwrap().push_back(payload.as_slice()[10..].to_vec());
                     data.video_service_data.write().unwrap().received_indication = Some(VideoIndicationType::VideoIndicationWithTimestamp);
                 },
                 _ => {

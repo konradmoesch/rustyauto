@@ -1,8 +1,13 @@
+use std::cell::RefCell;
 use std::sync::mpsc::Receiver;
 use std::time::Duration;
 
 use gstreamer::MessageView;
 use gstreamer::prelude::*;
+
+use gio::prelude::*;
+use gtk::glib;
+use gtk::prelude::*;
 
 use aasdk_rs::cryptor::Cryptor;
 use aasdk_rs::data;
@@ -78,14 +83,13 @@ fn main() {
                     {
                         messenger.run(&mut messenger_data);
                     }
-                    std::thread::sleep(std::time::Duration::from_millis(300));
+                    //std::thread::sleep(std::time::Duration::from_millis(300));
                 }
             });
 
             std::thread::spawn(move || {
                 while view_data.video_service_data.read().unwrap().status != aasdk_rs::data::services::general::ServiceStatus::Initialized {}
-                let pipeline = create_pipeline(rx).unwrap();
-                main_loop(pipeline).unwrap();
+                create_pipeline(rx);
             });
 
             loop {
@@ -112,9 +116,7 @@ fn main() {
     };
 }
 
-fn create_pipeline(view_receiver: Receiver<Vec<u8>>) -> Result<gstreamer::Pipeline, ()> {
-    gstreamer::init().unwrap();
-
+fn create_ui(app: &gtk::Application) {
     let pipeline = gstreamer::Pipeline::default();
 
     let udp_caps = gstreamer::Caps::builder("video/x-h264")
@@ -129,63 +131,133 @@ fn create_pipeline(view_receiver: Receiver<Vec<u8>>) -> Result<gstreamer::Pipeli
     let parse = gstreamer::ElementFactory::make("h264parse").build().unwrap();
     let decode = gstreamer::ElementFactory::make("avdec_h264").build().unwrap();
     let glup = gstreamer::ElementFactory::make("videoconvert").build().unwrap();
-    let sink = gstreamer::ElementFactory::make("autovideosink").build().unwrap();
+    //let sink = gstreamer::ElementFactory::make("autovideosink").build().unwrap();
+
+    let (sink, widget) = if let Ok(gtkglsink) = gstreamer::ElementFactory::make("gtkglsink").build() {
+        let glsinkbin = gstreamer::ElementFactory::make("glsinkbin")
+            .property("sink", &gtkglsink)
+            .build()
+            .unwrap();
+        let widget = gtkglsink.property::<gtk::Widget>("widget");
+        (glsinkbin, widget)
+    } else {
+        let sink = gstreamer::ElementFactory::make("gtksink").build().unwrap();
+        let widget = sink.property::<gtk::Widget>("widget");
+        (sink, widget)
+    };
 
     // attaching pipeline elements
     pipeline.add_many(&[&src, &parse, &decode, &glup, &sink]).unwrap();
     gstreamer::Element::link_many(&[&src, &parse, &decode, &glup, &sink]).unwrap();
 
-    /*let appsrc = src
-        .dynamic_cast::<gstreamer_app::AppSrc>()
-        .expect("Source element is expected to be an appsrc!");
+    // Create a simple gtk gui window to place our widget into.
+    let window = gtk::Window::new(gtk::WindowType::Toplevel);
+    window.set_default_size(720, 480);
+    let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    // Add our widget to the gui
+    vbox.pack_start(&widget, true, true, 0);
+    let label = gtk::Label::new(Some("Position: 00:00:00"));
+    vbox.pack_start(&label, true, true, 5);
+    window.add(&vbox);
+    window.show_all();
 
-    appsrc.set_is_live(true);
+    app.add_window(&window);
 
-    let mut i = 0;
-    appsrc.set_callbacks(
-        gstreamer_app::AppSrcCallbacks::builder()
-            .need_data(move |appsrc, _| {
-                println!("Producing frame {}", i);
-                //match view_data.video_service_data.write().unwrap().buffer.pop_front() {
-                //    None => { log::error!("No NAL frames in buffer!") }
-                //    Some(frame) => {
-                        //let buffer = gstreamer::Buffer::from_slice(&view_data.video_service_data.write().unwrap().buffer.iter().nth(i).unwrap().0);
-                        //let buffer = gstreamer::Buffer::from_mut_slice(&view_receiver.recv());
-                        //let buffer = gstreamer::Buffer::from_slice(frame.0.iter().nth(i).as_slice());
-                        i += 1;
+    let pipeline_weak = pipeline.downgrade();
+    // Add a timeout to the main loop that will periodically (every 500ms) be
+    // executed. This will query the current position within the stream from
+    // the underlying pipeline, and display it in our gui.
+    // Since this closure is called by the mainloop thread, we are allowed
+    // to modify the gui widgets here.
+    let timeout_id = glib::timeout_add_local(std::time::Duration::from_millis(500), move || {
+        // Here we temporarily retrieve a strong reference on the pipeline from the weak one
+        // we moved into this callback.
+        let pipeline = match pipeline_weak.upgrade() {
+            Some(pipeline) => pipeline,
+            None => return glib::Continue(true),
+        };
 
-                        // appsrc already handles the error here
-                        //let _ = appsrc.push_buffer(buffer);
-                   // }
-                //}
-            })
-            .build(),
-    );*/
+        // Query the current playing position from the underlying pipeline.
+        let position = pipeline.query_position::<gstreamer::ClockTime>();
+        // Display the playing position in the gui.
+        label.set_text(&format!("Position: {:.0}", position.display()));
+        // Tell the callback to continue calling this closure.
+        glib::Continue(true)
+    });
 
-    Ok(pipeline)
-}
+    let bus = pipeline.bus().unwrap();
 
-fn main_loop(pipeline: gstreamer::Pipeline) -> Result<(), ()> {
-    pipeline.set_state(gstreamer::State::Playing).unwrap();
+    pipeline
+        .set_state(gstreamer::State::Playing)
+        .expect("Unable to set the pipeline to the `Playing` state");
 
-    let bus = pipeline
-        .bus()
-        .expect("Pipeline without bus. Shouldn't happen!");
-
-    for msg in bus.iter_timed(gstreamer::ClockTime::NONE) {
+    let app_weak = app.downgrade();
+    bus.add_watch_local(move |_, msg| {
         use gstreamer::MessageView;
 
+        let app = match app_weak.upgrade() {
+            Some(app) => app,
+            None => return glib::Continue(false),
+        };
+
         match msg.view() {
-            MessageView::Eos(..) => break,
+            MessageView::Eos(..) => app.quit(),
             MessageView::Error(err) => {
-                pipeline.set_state(gstreamer::State::Null).unwrap();
-                return Err(());
+                println!(
+                    "Error from {:?}: {} ({:?})",
+                    err.src().map(|s| s.path_string()),
+                    err.error(),
+                    err.debug()
+                );
+                app.quit();
             }
             _ => (),
+        };
+
+        glib::Continue(true)
+    })
+        .expect("Failed to add bus watch");
+
+    let timeout_id = RefCell::new(Some(timeout_id));
+    let pipeline = RefCell::new(Some(pipeline));
+    app.connect_shutdown(move |_| {
+        // Optional, by manually destroying the window here we ensure that
+        // the gst element is destroyed when shutting down instead of having to wait
+        // for the process to terminate, allowing us to use the leaks tracer.
+        unsafe {
+            window.destroy();
         }
+
+        // GTK will keep the Application alive for the whole process lifetime.
+        // Wrapping the pipeline in a RefCell<Option<_>> and removing it from it here
+        // ensures the pipeline is actually destroyed when shutting down, allowing us
+        // to use the leaks tracer for example.
+        if let Some(pipeline) = pipeline.borrow_mut().take() {
+            pipeline
+                .set_state(gstreamer::State::Null)
+                .expect("Unable to set the pipeline to the `Null` state");
+            pipeline.bus().unwrap().remove_watch().unwrap();
+        }
+
+        if let Some(timeout_id) = timeout_id.borrow_mut().take() {
+            timeout_id.remove();
+        }
+    });
+}
+
+fn create_pipeline(view_receiver: Receiver<Vec<u8>>) {
+    gstreamer::init().unwrap();
+    gtk::init().unwrap();
+
+    {
+        let app = gtk::Application::new(None, gio::ApplicationFlags::FLAGS_NONE);
+
+        app.connect_activate(create_ui);
+        app.run();
     }
 
-    pipeline.set_state(gstreamer::State::Null).unwrap();
-
-    Ok(())
+    // Optional, can be used to detect leaks using the leaks tracer
+    unsafe {
+        gstreamer::deinit();
+    }
 }

@@ -73,6 +73,8 @@ fn main() -> Result<()> {
         .input("src/protos/VideoFocusIndicationMessage.proto")
         .input("src/protos/VideoFocusModeEnum.proto")
         .input("src/protos/AVMediaAckIndicationMessage.proto")
+        .input("src/protos/NavigationFocusRequestMessage.proto")
+        .input("src/protos/NavigationFocusResponseMessage.proto")
         // Specify output directory relative to Cargo output directory.
         .cargo_out_dir("protos")
         .run_from_script();

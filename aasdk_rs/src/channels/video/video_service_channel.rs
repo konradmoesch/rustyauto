@@ -41,7 +41,7 @@ pub fn run(data: &mut AndroidAutoEntityData, receival_queue_tx: Sender<ReceivalR
                 data.video_service_data.write().unwrap().received_indication = None;
             }
             None => {
-                log::debug!("No indication received");
+                //log::debug!("No indication received");
             }
         }
     }
